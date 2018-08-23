@@ -4,5 +4,5 @@ which shows the information of modifications with corresponding time.
 
 For the result: [result.txt][2]
 
-[1]: http://www.mca.gov.cn/article/sj/tjbz/a/ "中华人民共和国行政区划代码"
+[1]: http://www.mca.gov.cn/article/sj/xzqh/ "中华人民共和国行政区划代码"
 [2]: https://github.com/yescallop/areacodes/blob/master/result.txt
