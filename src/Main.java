@@ -12,14 +12,14 @@ public class Main {
     public static void main(String[] args) {
         Map<Integer, Area> map = new ConcurrentHashMap<>();
         Map<Integer, String> each = new HashMap<>();
-        for (int year = 1980; year <= 2018; year++) {
+        for (int year = 1980; year <= 201807; year++) {
             try {
                 BufferedReader reader = new BufferedReader(new FileReader(year + ".txt"));
                 each.clear();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     int code = Integer.parseInt(line.substring(0, 6));
-                    String name = line.substring(7, line.length());
+                    String name = line.substring(7);
                     each.put(code, name);
                 }
                 final int y = year;
@@ -49,6 +49,7 @@ public class Main {
                 e.printStackTrace();
             }
             System.out.println("Processed: " + year);
+            if (year == 2017) year = 201800;
         }
         int[] codes = map.keySet().stream().mapToInt(a -> a).toArray();
         Arrays.sort(codes);
