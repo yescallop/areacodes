@@ -1,8 +1,10 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * @author Scallop Ye
@@ -12,45 +14,49 @@ public class Main {
     public static void main(String[] args) {
         Map<Integer, Area> map = new ConcurrentHashMap<>();
         Map<Integer, String> each = new HashMap<>();
-        for (int year = 1980; year <= 201807; year++) {
+        Consumer<Path> processor = file -> {
+            String name = file.getFileName().toString();
+            int year = Integer.parseInt(name.substring(0, name.length() - 4));
+            each.clear();
             try {
-                BufferedReader reader = new BufferedReader(new FileReader(year + ".txt"));
-                each.clear();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    int code = Integer.parseInt(line.substring(0, 6));
-                    String name = line.substring(7);
-                    each.put(code, name);
-                }
-                final int y = year;
-                map.entrySet().parallelStream()
-                        .filter(e -> !each.containsKey(e.getKey()) && !e.getValue().ended)
-                        .forEach(e -> {
-                            Area a = e.getValue();
-                            a.time.add(y);
-                            a.ended = true;
-                            a.names.add("-");
-                        });
-                each.entrySet().parallelStream()
-                        .forEach(e -> {
-                            Integer k = e.getKey();
-                            if (map.containsKey(k)) {
-                                Area a = map.get(k);
-                                if (a.ended)
-                                    a.ended = false;
-                                if (!a.names.get(a.names.size() - 1).equals(e.getValue())) {
-                                    a.names.add(e.getValue());
-                                    a.time.add(y);
-                                }
-                            } else
-                                map.put(k, new Area(e.getValue(), y));
-                        });
+                Files.lines(file).forEach(line -> each.put(Integer.parseInt(line.substring(0, 6)), line.substring(7)));
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            final int y = year;
+            map.entrySet().parallelStream()
+                    .filter(e -> !each.containsKey(e.getKey()) && !e.getValue().ended)
+                    .forEach(e -> {
+                        Area a = e.getValue();
+                        a.time.add(y);
+                        a.ended = true;
+                        a.names.add("-");
+                    });
+            each.entrySet().parallelStream()
+                    .forEach(e -> {
+                        Integer k = e.getKey();
+                        if (map.containsKey(k)) {
+                            Area a = map.get(k);
+                            if (a.ended)
+                                a.ended = false;
+                            if (!a.names.get(a.names.size() - 1).equals(e.getValue())) {
+                                a.names.add(e.getValue());
+                                a.time.add(y);
+                            }
+                        } else
+                            map.put(k, new Area(e.getValue(), y));
+                    });
             System.out.println("Processed: " + year);
-            if (year == 2017) year = 201800;
+        };
+
+        try {
+            Files.list(Paths.get("data"))
+                    .filter(Files::isRegularFile)
+                    .forEach(processor);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
         int[] codes = map.keySet().stream().mapToInt(a -> a).toArray();
         Arrays.sort(codes);
         for (int c : codes) {
