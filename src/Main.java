@@ -132,9 +132,7 @@ public class Main {
             } else if (endTime == null) {
                 secondaryDistrict = cda.lastName();
             } else {
-                secondaryDistrict = cda.lastNameContaining(endTime);
-                if (secondaryDistrict == null)
-                    secondaryDistrict = cda.lastNameContaining(startTime);
+                secondaryDistrict = cda.lastNameIntersecting(startTime, endTime);
                 if (secondaryDistrict == null)
                     secondaryDistrict = "直管";
             }
@@ -185,20 +183,26 @@ public class Main {
             return names.get(names.size() - 1);
         }
 
-        public String lastNameContaining(int t) {
+        public String lastNameIntersecting(int start, int end) {
             int size = time.size();
             if (size == 1)
-                return time.get(0) <= t ? names.get(0) : null;
+                return time.get(0) <= start ? names.get(0) : null;
 
             for (int i = size - 1; i >= 0; i--) {
-                int cur = time.get(i);
-                String name = names.get(i);
-                if (i == size - 1 && !deprecated && cur <= t) {
-                    return name;
-                } else if (!name.equals("-")) {
-                    if (cur <= t && time.get(i + 1) >= t)
-                        return name;
+                int curTime = time.get(i);
+                if (i == size - 1 && !deprecated) {
+                    if (curTime < end)
+                        return names.get(i);
+                    continue;
                 }
+
+                String curName = names.get(i);
+                if (curName.equals("-"))
+                    continue;
+                int nextTime = time.get(i + 1);
+                // check if [curTime,nextTime) intercepts with [start,end)
+                if ((start >= curTime && start < nextTime) || (curTime >= start && curTime < end))
+                    return curName;
             }
             return null;
         }
