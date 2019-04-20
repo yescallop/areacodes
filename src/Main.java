@@ -186,7 +186,7 @@ public class Main {
         public String lastNameIntersecting(int start, int end) {
             int size = time.size();
             if (size == 1)
-                return time.get(0) <= start ? names.get(0) : null;
+                return time.get(0) < end ? names.get(0) : null;
 
             for (int i = size - 1; i >= 0; i--) {
                 int curTime = time.get(i);
