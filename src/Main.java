@@ -186,6 +186,7 @@ public class Main {
         public String lastNameIntersecting(int start, int end) {
             int size = time.size();
             if (size == 1)
+                // check if [t,+∞) and [start,end) intersect
                 return time.get(0) < end ? names.get(0) : null;
 
             for (int i = size - 1; i >= 0; i--) {
@@ -200,8 +201,12 @@ public class Main {
                 if (curName.equals("-"))
                     continue;
                 int nextTime = time.get(i + 1);
-                // check if [curTime,nextTime) intercepts with [start,end)
-                if ((start >= curTime && start < nextTime) || (curTime >= start && curTime < end))
+                // check if P=[curTime,nextTime) and Q=[start,end) intersect
+                // we have 2 propositions
+                // A: P is left separate from Q (nextTime <= start)
+                // B: P is right separate from Q (curTime >= end)
+                // then just !(A || B) <=> !A && !B
+                if (nextTime > start && curTime < end)
                     return curName;
             }
             return null;
