@@ -1,5 +1,5 @@
 # areacodes
-A Java program that merges **[Codes for the administrative divisions of the People's Republic of China][1]** (county and above) from 1980 to 201902 into a whole,
+A Java program that merges **[Codes for the administrative divisions of the People's Republic of China][1]** (county and above) from 1980 to 2019 into a whole,
 which shows the information of modifications with corresponding time.
 
 ## For the result:
