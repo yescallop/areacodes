@@ -16,8 +16,8 @@ import java.util.function.Consumer;
  */
 public class Main {
     public static void main(String[] args) {
-        Map<Integer, Area> map = new HashMap<>();
-        Map<Integer, String> each = new HashMap<>();
+        Map<Integer, Area> map = new HashMap<>(8000);
+        Map<Integer, String> each = new HashMap<>(4000);
         Consumer<Path> processor = file -> {
             String name = file.getFileName().toString();
             final int year = Integer.parseInt(name.substring(0, name.lastIndexOf('.'))); //cut the file name
@@ -36,7 +36,7 @@ public class Main {
                         Area a = e.getValue();
                         a.time.add(year);
                         a.deprecated = true;
-                        a.names.add("-");
+                        a.names.add("");
                     });
             each.forEach((k, v) -> {
                 if (map.containsKey(k)) {
@@ -71,13 +71,6 @@ public class Main {
             bwCsv.write('\ufeff'); //BOM
             bwCsv.write("代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间\n");
 
-            BufferedWriter bwTxt = Files.newBufferedWriter(
-                    Paths.get("result.txt"),
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING
-            );
-
             int[] codes = map.keySet().stream().mapToInt(Integer::intValue).sorted().toArray();
             for (int c : codes) {
                 Area a = map.get(c);
@@ -88,7 +81,7 @@ public class Main {
                 } else if (a.deprecated) {
                     for (int i = size - 2; i >= 0; i--) {
                         String name = a.names.get(i);
-                        if (!name.equals("-"))
+                        if (!name.isEmpty())
                             writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), i == size - 2);
                     }
                 } else {
@@ -96,16 +89,12 @@ public class Main {
                         String name = a.names.get(i);
                         if (i == size - 1)
                             writeArea(bwCsv, map, c, name, a.time.get(i), null, true);
-                        else if (!name.equals("-"))
-                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), i == size - 1);
+                        else if (!name.isEmpty())
+                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), false);
                     }
                 }
-
-                bwTxt.write(String.format("%d\t%s\t%s\n", c, a.names, a.time));
-                bwTxt.flush();
             }
             bwCsv.close();
-            bwTxt.close();
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -116,27 +105,27 @@ public class Main {
                                   int code, String name, int startTime, Integer endTime, boolean last) throws IOException {
         Level level = Level.fromCode(code);
 
-        String primaryDistrict = map.get(code / 10000 * 10000).names.get(0);
-        String secondaryDistrict = "";
+        String primary = map.get(code / 10000 * 10000).names.get(0);
+        String secondary = "";
 
         if (level == Level.PREFECTURE) {
-            secondaryDistrict = name;
+            secondary = name;
         } else if (level == Level.COUNTY) {
             Area cda = map.get(code / 100 * 100);
             if (cda == null) {
-                secondaryDistrict = "直管";
+                secondary = "直管";
             } else if (endTime == null) {
-                secondaryDistrict = cda.lastName();
+                secondary = cda.lastName();
             } else {
-                secondaryDistrict = cda.lastNameIntersecting(startTime, endTime);
-                if (secondaryDistrict == null)
-                    secondaryDistrict = "直管";
+                secondary = cda.lastNameIntersecting(startTime, endTime);
+                if (secondary == null)
+                    secondary = "直管";
             }
         }
 
         //代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间
         bw.write(String.format("%d,%s,%s,%s,%s,%s,%d,%s\n",
-                code, primaryDistrict, secondaryDistrict, name, level.description,
+                code, primary, secondary, name, level.description,
                 endTime == null ? "启用" : (last ? "弃用" : "变更"),
                 startTime, endTime == null ? "" : endTime
         ));
@@ -180,9 +169,6 @@ public class Main {
 
         public String lastNameIntersecting(int start, int end) {
             int size = time.size();
-            if (size == 1)
-                // check if [t,+∞) and [start,end) intersect
-                return time.get(0) < end ? names.get(0) : null;
 
             for (int i = size - 1; i >= 0; i--) {
                 int curTime = time.get(i);
@@ -193,7 +179,7 @@ public class Main {
                 }
 
                 String curName = names.get(i);
-                if (curName.equals("-"))
+                if (curName.isEmpty())
                     continue;
                 int nextTime = time.get(i + 1);
                 // check if P=[curTime,nextTime) and Q=[start,end) intersect
