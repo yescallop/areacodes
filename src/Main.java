@@ -15,11 +15,6 @@ import java.util.function.Consumer;
  * @author Scallop Ye
  */
 public class Main {
-
-    public static final int FLAG_NONE = 0;
-    public static final int FLAG_TEMPORARY_DEPRECATION = 1;
-    public static final int FLAG_PERMANENT_DEPRECATION = 2;
-
     public static void main(String[] args) {
         Map<Integer, Area> map = new HashMap<>();
         Map<Integer, String> each = new HashMap<>();
@@ -74,7 +69,7 @@ public class Main {
                     StandardOpenOption.TRUNCATE_EXISTING
             );
             bwCsv.write('\ufeff'); //BOM
-            bwCsv.write("代码,一级行政区,二级行政区（弃用前）,名称,级别,状态,启用时间,弃用时间,是否自治,是否市辖区,是否县级市\n");
+            bwCsv.write("代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间\n");
 
             BufferedWriter bwTxt = Files.newBufferedWriter(
                     Paths.get("result.txt"),
@@ -88,31 +83,21 @@ public class Main {
                 Area a = map.get(c);
 
                 int size = a.names.size();
-                int flag = FLAG_NONE;
                 if (size == 1) {
-                    writeArea(bwCsv, map, c, a.names.get(0), a.time.get(0), null, flag);
+                    writeArea(bwCsv, map, c, a.names.get(0), a.time.get(0), null, true);
                 } else if (a.deprecated) {
                     for (int i = size - 2; i >= 0; i--) {
                         String name = a.names.get(i);
-                        if (name.equals("-")) {
-                            flag = FLAG_TEMPORARY_DEPRECATION;
-                        } else {
-                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1),
-                                    i == size - 2 ? FLAG_PERMANENT_DEPRECATION : flag);
-                            flag = FLAG_NONE;
-                        }
+                        if (!name.equals("-"))
+                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), i == size - 2);
                     }
                 } else {
                     for (int i = size - 1; i >= 0; i--) {
                         String name = a.names.get(i);
                         if (i == size - 1)
-                            writeArea(bwCsv, map, c, name, a.time.get(i), null, flag);
-                        else if (name.equals("-")) {
-                            flag = FLAG_TEMPORARY_DEPRECATION;
-                        } else {
-                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), flag);
-                            flag = FLAG_NONE;
-                        }
+                            writeArea(bwCsv, map, c, name, a.time.get(i), null, true);
+                        else if (!name.equals("-"))
+                            writeArea(bwCsv, map, c, name, a.time.get(i), a.time.get(i + 1), i == size - 1);
                     }
                 }
 
@@ -128,12 +113,8 @@ public class Main {
     }
 
     private static void writeArea(BufferedWriter bw, Map<Integer, Area> map,
-                                  int code, String name, int startTime, Integer endTime, int flag) throws IOException {
+                                  int code, String name, int startTime, Integer endTime, boolean last) throws IOException {
         Level level = Level.fromCode(code);
-
-        boolean isAutonomous = name.contains("自治");
-        boolean isCountyLevelCity = (level == Level.COUNTY && name.endsWith("市"));
-        boolean isDistrict = (level == Level.COUNTY && name.endsWith("区"));
 
         String primaryDistrict = map.get(code / 10000 * 10000).names.get(0);
         String secondaryDistrict = "";
@@ -153,13 +134,11 @@ public class Main {
             }
         }
 
-        //代码,一级行政区,二级行政区（弃用前）,名称,级别,状态,启用时间,弃用时间,是否自治,是否市辖区,是否县级市
-        bw.write(String.format("%d,%s,%s,%s,%s,%s,%d,%s,%s,%s,%s\n",
+        //代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间
+        bw.write(String.format("%d,%s,%s,%s,%s,%s,%d,%s\n",
                 code, primaryDistrict, secondaryDistrict, name, level.description,
-                endTime == null ? "启用" :
-                        (flag == FLAG_NONE ? "更名" : (flag == FLAG_TEMPORARY_DEPRECATION ? "暂弃" : "弃用")),
-                startTime, endTime == null ? "" : endTime,
-                isAutonomous ? "是" : "否", isDistrict ? "是" : "否", isCountyLevelCity ? "是" : "否"
+                endTime == null ? "启用" : (last ? "弃用" : "变更"),
+                startTime, endTime == null ? "" : endTime
         ));
         bw.flush();
     }
