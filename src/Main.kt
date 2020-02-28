@@ -8,15 +8,20 @@ import java.nio.file.StandardOpenOption
 const val DATA_DIRECTORY = "data"
 const val RESULT_FILENAME = "result.csv"
 const val CSV_HEADER = "代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间"
-val allMap = HashMap<Int, Area>(8192, 1f)
-lateinit var bw: Writer
+private val allMap = HashMap<Int, Area>(8192, 1f)
+private val bw: Writer = Files.newBufferedWriter(
+    Paths.get(RESULT_FILENAME),
+    StandardCharsets.UTF_8,
+    StandardOpenOption.CREATE,
+    StandardOpenOption.TRUNCATE_EXISTING
+).append('\uFEFF').append(CSV_HEADER).append('\n')
 
 fun main() {
     val curMap = HashMap<Int, String>(4096, 1f)
 
     File(DATA_DIRECTORY).listFiles()!!.forEach { file ->
         val curTime = file.name.toString()
-                .substringBeforeLast('.').toInt()
+            .substringBeforeLast('.').toInt()
         curMap.clear()
         file.forEachLine {
             curMap[it.substring(0, 6).toInt()] = it.substring(7)
@@ -37,13 +42,6 @@ fun main() {
         }
         println("Processed: $curTime")
     }
-
-    bw = Files.newBufferedWriter(
-            Paths.get(RESULT_FILENAME),
-            StandardCharsets.UTF_8,
-            StandardOpenOption.CREATE,
-            StandardOpenOption.TRUNCATE_EXISTING
-    ).append('\uFEFF').append(CSV_HEADER).append('\n')
 
     allMap.toSortedMap().forEach { (code, area) ->
         val entries = area.entries
@@ -66,13 +64,9 @@ fun writeEntry(code: Int, name: String, start: Int, end: Int?, isLast: Boolean) 
     val province = allMap[code / 10000 * 10000]!!.entries[0].name
     val prefecture = when (level) {
         Level.PREFECTURE -> name
-        Level.COUNTY -> {
-            val area = allMap[code / 100 * 100]
-            when {
-                area == null -> "直管"
-                end == null -> area.entries.last().name
-                else -> area.lastNameIntersecting(start, end) ?: "直管"
-            }
+        Level.COUNTY -> when (val area = allMap[code / 100 * 100]) {
+            null -> "直管"
+            else -> area.lastNameIntersecting(start, end) ?: "直管"
         }
         Level.PROVINCE -> ""
     }
@@ -83,10 +77,10 @@ fun writeEntry(code: Int, name: String, start: Int, end: Int?, isLast: Boolean) 
         else -> "变更"
     }
     //代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间
-    bw.write(String.format("%d,%s,%s,%s,%s,%s,%d,%s\n",
-            code, province, prefecture, name, level.desc,
-            status, start, end ?: ""
-    ))
+    bw.write(
+        "$code,$province,$prefecture,$name," +
+                "${level.desc},$status,$start,${end ?: ""}\n"
+    )
     bw.flush()
 }
 
@@ -106,8 +100,9 @@ class Area(time: Int, name: String) {
     val entries = ArrayList<Entry>(1).apply { add(Entry(time, name)) }
     var deprecated = false
 
-    fun lastNameIntersecting(start: Int, end: Int): String? {
-        val last = entries.size - 1
+    fun lastNameIntersecting(start: Int, end: Int?): String? {
+        val last = entries.lastIndex
+        if (end == null) return entries[last].name
         for (i in last downTo 0) {
             val cur = entries[i]
             if (i == last && !deprecated) {
