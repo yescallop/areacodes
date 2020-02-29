@@ -27,7 +27,7 @@ fun main() {
             curMap[it.substring(0, 6).toInt()] = it.substring(7)
         }
         allMap.forEach { (name, area) ->
-            if (!curMap.contains(name) && !area.deprecated) {
+            if (name !in curMap && !area.deprecated) {
                 area.entries.add(Entry(curTime, ""))
                 area.deprecated = true
             }
@@ -48,11 +48,11 @@ fun main() {
         val size = entries.size
         val last = size - if (area.deprecated) 2 else 1
         for (i in last downTo 0) {
-            val name = entries[i].name
+            val entry = entries[i]
+            val name = entry.name
             if (name.isEmpty()) continue
-            val isLast = i == last
-            val end = if (i + 1 >= size) null else entries[i + 1].time
-            writeEntry(code, name, entries[i].time, end, isLast)
+            val end = entries.getOrNull(i + 1)?.time
+            writeEntry(code, name, entry.time, end, i == last)
         }
     }
     bw.close()
@@ -64,10 +64,8 @@ fun writeEntry(code: Int, name: String, start: Int, end: Int?, isLast: Boolean) 
     val province = allMap[code / 10000 * 10000]!!.entries[0].name
     val prefecture = when (level) {
         Level.PREFECTURE -> name
-        Level.COUNTY -> when (val area = allMap[code / 100 * 100]) {
-            null -> "直管"
-            else -> area.lastNameIntersecting(start, end) ?: "直管"
-        }
+        Level.COUNTY -> allMap[code / 100 * 100]
+            ?.lastNameIntersecting(start, end) ?: "直管"
         Level.PROVINCE -> ""
     }
 
@@ -96,8 +94,8 @@ enum class Level(val desc: String) {
     COUNTY("县级");
 }
 
-class Area(time: Int, name: String) {
-    val entries = ArrayList<Entry>(1).apply { add(Entry(time, name)) }
+class Area(code: Int, name: String) {
+    val entries = ArrayList<Entry>(1).apply { add(Entry(code, name)) }
     var deprecated = false
 
     fun lastNameIntersecting(start: Int, end: Int?): String? {
