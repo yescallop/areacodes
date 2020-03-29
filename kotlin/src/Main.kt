@@ -26,8 +26,8 @@ fun main() {
         file.forEachLine {
             curMap[it.substring(0, 6).toInt()] = it.substring(7)
         }
-        allMap.forEach { (name, area) ->
-            if (name !in curMap && !area.deprecated) {
+        allMap.forEach { (code, area) ->
+            if (code !in curMap && !area.deprecated) {
                 area.entries.add(Entry(curTime, ""))
                 area.deprecated = true
             }
@@ -79,7 +79,6 @@ fun writeEntry(code: Int, name: String, start: Int, end: Int?, isLast: Boolean) 
         "$code,$province,$prefecture,$name," +
                 "${level.desc},$status,$start,${end ?: ""}\n"
     )
-    bw.flush()
 }
 
 fun levelFromCode(code: Int) = when {

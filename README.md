@@ -1,5 +1,5 @@
 # areacodes
-A Kotlin program that merges [Codes for the administrative divisions of the People's Republic of China][1]
+A Kotlin / Rust program that merges [Codes for the administrative divisions of the People's Republic of China][1]
 (at and above county level) from 1980 to 2020 into a whole,
 which shows the information of modifications with corresponding time.
 
