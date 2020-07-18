@@ -88,7 +88,7 @@ fn write_entry(
     let prefecture = match level {
         PREFECTURE => name,
         COUNTY => match map.get(&(code / 100 * 100)) {
-            Some(area) => area.last_name_intersecting(start, end).map(|s| s.as_str()),
+            Some(area) => area.last_name_intersecting(start, end),
             None => None,
         }
         .unwrap_or("直管"),
@@ -120,6 +120,7 @@ fn write_entry(
     buf.write(&[b'\n']).unwrap();
 }
 
+#[inline]
 fn data_path_iter() -> impl Iterator<Item = PathBuf> {
     fs::read_dir(DATA_DIRECTORY)
         .unwrap()
@@ -165,17 +166,17 @@ impl Area {
         }
     }
 
-    fn last_name_intersecting(&self, start: u32, end: Option<u32>) -> Option<&String> {
+    fn last_name_intersecting(&self, start: u32, end: Option<u32>) -> Option<&str> {
         let last = self.entries.len() - 1;
         if end.is_none() {
-            return self.entries[last].name.as_ref();
+            return self.entries[last].name.as_deref();
         }
         let end = end.unwrap();
         for i in (0..=last).rev() {
             let cur = &self.entries[i];
             if i == last && !self.deprecated {
                 if cur.time < end {
-                    return cur.name.as_ref();
+                    return cur.name.as_deref();
                 }
                 continue;
             }
@@ -183,7 +184,7 @@ impl Area {
                 continue;
             }
             if self.entries[i + 1].time > start && cur.time < end {
-                return cur.name.as_ref();
+                return cur.name.as_deref();
             }
         }
         None
