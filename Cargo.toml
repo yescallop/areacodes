@@ -2,11 +2,7 @@
 name = "areacodes"
 version = "0.1.0"
 authors = ["Scallop Ye"]
-edition = "2018"
-
-[dependencies]
-rustc-hash = "1.1"
+edition = "2021"
 
 [profile.release]
 lto = true
-panic = "abort"
