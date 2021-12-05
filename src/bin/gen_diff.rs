@@ -1,7 +1,8 @@
 use std::{
+    collections::{hash_map::Entry, HashMap},
     fs::{self, File},
     io::{BufWriter, Result, Write},
-    process::Command, collections::{HashMap, hash_map::Entry},
+    process::Command,
 };
 
 fn main() -> Result<()> {
@@ -41,7 +42,7 @@ fn main() -> Result<()> {
 
         let file = File::create(format!("diff/{}-{}.diff", pair[0], pair[1]))?;
         let mut bw = BufWriter::new(file);
-       
+
         for line in lines {
             if !line.is_empty() {
                 writeln!(bw, "{}", line)?;

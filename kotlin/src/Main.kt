@@ -7,7 +7,7 @@ import java.nio.file.StandardOpenOption
 
 const val DATA_DIRECTORY = "data"
 const val RESULT_FILENAME = "result.csv"
-const val CSV_HEADER = "\uFEFF代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间,弃用时间\n"
+const val CSV_HEADER = "\uFEFF代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间（含）,弃用时间（不含）\n"
 private val allMap = HashMap<Int, Area>(8192, 1f)
 private val bw: Writer = Files.newBufferedWriter(
     Paths.get(RESULT_FILENAME),
