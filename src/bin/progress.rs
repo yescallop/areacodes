@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         "{}/{} ({:.1}%)",
         finished,
         total,
-        total as f32 / finished as f32
+        finished as f32 / total as f32 * 100.0
     );
     Ok(())
 }
