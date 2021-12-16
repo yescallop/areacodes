@@ -8,8 +8,8 @@
 
 | 数据集名称 | 规范 | 目录 | 汇总 | 进度 |
 | - | - | - | - | - |
-| 历史行政区划代码 | 无 | [data](data) | [result.csv](result.csv) | 100% |
-| 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 暂无 | 10.8% |
+| 历史行政区划代码 | 无 | [data](data) | [CSV](result.csv) | 100% |
+| 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 暂无 | 10.9% |
 
 ## 原始数据来源
 
