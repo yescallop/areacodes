@@ -9,9 +9,11 @@ fn main() -> Result<()> {
     for path in diff_dir_iter() {
         let file = File::open(&path)?;
         for_each_line_in(file, |line| {
-            total += 1;
-            if line.contains(['>', '<'].as_ref()) {
-                finished += 1;
+            if line.starts_with(['-', '+', '='].as_ref()) {
+                total += 1;
+                if line.contains(['>', '<'].as_ref()) {
+                    finished += 1;
+                }
             }
         })?;
     }
