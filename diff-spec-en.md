@@ -39,11 +39,11 @@ This diff specification, called `area-diff`, is based on `git-diff` with some mo
     - 2 (in the same first-level division but different second-level divisions).
     - 3 (in different first-level divisions).
 
-    Implementation that adheres to this specification, when selecting the record with the least distance from the specified record, should first automatically determine whether such a record is unique, and if it is unique, select that unique record; if it is not unique, leave it to the user to select.
+    Implementations that adhere to this specification, when selecting the record with the least distance from the specified record, should first automatically determine whether such a record is unique, and if it is unique, select that unique record; if it is not unique, leave it to the user to select.
 
 ## Note
 
-1. When entering textual descriptions of division changes into a diff table, additional consideration should be given to the presence of internal changes, which can be obtained by searching the page for the keyword "划归" ("transfer ... to the jurisdiction of ...") and filtering manually. After each year's internal changes are entered, they should be documented by year in [diff-note.md](diff-note.md). If there are none, document "无" ("none").
+1. When entering textual descriptions of division changes into a diff table, additional consideration should be given to the presence of internal changes, which can be obtained by searching the page for the keyword "划归" ("transfer ... to the jurisdiction of ...") and filtering manually. After each year's internal changes are entered, the internal changes should be documented by year in [diff-note.md](diff-note.md). If there are none, document "无" ("none").
 
 ## Examples
 
