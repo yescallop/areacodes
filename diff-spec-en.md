@@ -19,7 +19,7 @@ This diff specification, called `area-diff`, is based on `git-diff` with some mo
 1. Each non-empty row in a diff table is divided into four types, determined by its initial character: **deletion row** (`-`), **addition row** (`+`), **internal change row** (`=`) and **comment row** (`#`). In particular, internal change rows and non-original deletion and addition rows are collectively referred to as **change rows**.
 1. Any modification in a diff table should obey the following rules.
     - In a diff table, it is not permitted to delete any row that contains the original contents, to modify the original contents therein, or to insert any deletion or addition row, unless the corresponding data tables have been revised.
-    - In a row that contains the original contents in a diff table, the original contents should always be kept at the start of the row and only the contents after the original ones to the end of the row may be modified.
+    - If a row in a diff table contains the original contents, the original contents therein should always be kept at the start of the row and only the contents after the original ones to the end of the row may be modified.
     - All rows in a diff table are not sequential and can thus be sorted in any order, but care should be taken to maintain a certain structure.
     - The syntax of all rows in a diff table must strictly adhere to the rules hereafter.
 1. Each change row has its corresponding record in the corresponding data tables, called the **record of the row**. The record of a deletion row is in the source table, that of an addition row in the destination table, and that of an internal change row in both the source and destination tables.
