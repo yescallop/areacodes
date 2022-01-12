@@ -110,7 +110,7 @@ fn write_entry(
         Level::COUNTY => map
             .get(&(code / 100 * 100))
             .and_then(|area| area.last_name_intersecting(start, end))
-            .unwrap_or("直管"),
+            .unwrap_or("直辖"),
         Level::PROVINCE => "",
     };
 
