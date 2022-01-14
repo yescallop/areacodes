@@ -142,6 +142,7 @@ fn data_dir_iter() -> impl Iterator<Item = PathBuf> {
     fs::read_dir(DATA_DIRECTORY)
         .expect("failed to read data directory")
         .map(|e| e.unwrap().path())
+        .filter(|p| p.is_file())
 }
 
 enum Level {

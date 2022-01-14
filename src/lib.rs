@@ -15,6 +15,9 @@ pub fn for_each_line_in(file: File, mut f: impl FnMut(&str)) -> Result<()> {
             Ok(_n) => {
                 if buf.ends_with('\n') {
                     buf.pop();
+                    if buf.ends_with('\r') {
+                        buf.pop();
+                    }
                 }
                 f(&buf);
                 buf.clear();
