@@ -1,8 +1,9 @@
-use std::collections::{hash_map::Entry::*, HashMap};
-use std::fs::{self, File};
-use std::io::{BufWriter, Result, Write};
-use std::path::PathBuf;
-use std::time::Instant;
+use std::{
+    collections::{hash_map::Entry::*, HashMap},
+    fs::File,
+    io::{BufWriter, Result, Write},
+    time::Instant,
+};
 
 use areacodes::*;
 
@@ -17,7 +18,7 @@ fn main() -> Result<()> {
     let mut all_map = HashMap::<u32, Area>::with_capacity(8192);
     let mut cur_map = HashMap::<u32, String>::with_capacity(4096);
 
-    for path in data_dir_iter() {
+    for path in files(DATA_DIRECTORY) {
         let file_stem = path
             .file_stem()
             .expect("no file name")
@@ -136,13 +137,6 @@ fn write_entry(
         write!(buf, "{}", end)?;
     }
     writeln!(buf)
-}
-
-fn data_dir_iter() -> impl Iterator<Item = PathBuf> {
-    fs::read_dir(DATA_DIRECTORY)
-        .expect("failed to read data directory")
-        .map(|e| e.unwrap().path())
-        .filter(|p| p.is_file())
 }
 
 enum Level {

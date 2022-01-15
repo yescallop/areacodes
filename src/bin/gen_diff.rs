@@ -1,12 +1,23 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fs::{self, File},
+    fs::File,
     io::{BufWriter, Result, Write},
     process::Command,
 };
 
+use areacodes::files;
+
 fn main() -> Result<()> {
-    let file_stems = file_stem_iter().collect::<Vec<_>>();
+    let clean = Command::new("git")
+        .args(["diff", "--quiet"])
+        .status()?
+        .success();
+    if !clean {
+        println!("Don't do this before you stash or commit the changes!");
+        return Ok(());
+    }
+
+    let file_stems = file_stems().collect::<Vec<_>>();
     for pair in file_stems.windows(2) {
         let res = Command::new("git")
             .args(["diff", "-U0", "--no-index"])
@@ -52,9 +63,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn file_stem_iter() -> impl Iterator<Item = String> {
-    fs::read_dir("data").unwrap().map(|e| {
-        let path = e.unwrap().path();
-        path.file_stem().unwrap().to_string_lossy().into_owned()
-    })
+fn file_stems() -> impl Iterator<Item = String> {
+    files("data").map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
 }

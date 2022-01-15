@@ -1,6 +1,7 @@
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{BufRead, BufReader},
+    path::PathBuf,
 };
 
 pub use std::io::Result;
@@ -25,4 +26,11 @@ pub fn for_each_line_in(file: File, mut f: impl FnMut(&str)) -> Result<()> {
             Err(e) => return Err(e),
         }
     }
+}
+
+pub fn files(path: &str) -> impl Iterator<Item = PathBuf> {
+    fs::read_dir("diff")
+        .unwrap_or_else(|_| panic!("failed to read directory: {}", path))
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.is_file())
 }
