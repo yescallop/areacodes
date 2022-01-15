@@ -29,7 +29,7 @@ pub fn for_each_line_in(file: File, mut f: impl FnMut(&str)) -> Result<()> {
 }
 
 pub fn files(path: &str) -> impl Iterator<Item = PathBuf> {
-    fs::read_dir("diff")
+    fs::read_dir(path)
         .unwrap_or_else(|_| panic!("failed to read directory: {}", path))
         .map(|e| e.unwrap().path())
         .filter(|p| p.is_file())
