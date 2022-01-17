@@ -9,7 +9,7 @@ The tools in the project are all written in Rust. The previous Kotlin code is no
 | Dataset name | Specification | Directory | Summary | Progress |
 | - | - | - | - | - |
 | Historical codes | N/A | [data](data) | [CSV](result.csv) | 100% |
-| Code correspondence | [diff spec](diff-spec.md) | [diff](diff) | N/A | 45.5% |
+| Code correspondence | [diff spec](diff-spec.md) | [diff](diff) | N/A | 49.8% |
 
 ## Raw data source
 
