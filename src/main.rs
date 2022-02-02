@@ -107,12 +107,13 @@ fn write_entry(
         .as_deref()
         .unwrap();
     let prefecture = match level {
-        Level::PREFECTURE => name,
-        Level::COUNTY => map
-            .get(&(code / 100 * 100))
+        Level::Prefecture => name,
+        Level::County => Some(code / 100 * 100)
+            .filter(|&code| matches!(Level::from_code(code), Level::Prefecture))
+            .and_then(|code| map.get(&code))
             .and_then(|area| area.last_name_intersecting(start, end))
             .unwrap_or("直辖"),
-        Level::PROVINCE => "",
+        Level::Province => "",
     };
 
     let status = if end.is_none() {
@@ -140,27 +141,27 @@ fn write_entry(
 }
 
 enum Level {
-    PROVINCE,
-    PREFECTURE,
-    COUNTY,
+    Province,
+    Prefecture,
+    County,
 }
 
 impl Level {
     fn desc(&self) -> &str {
         match self {
-            Level::PROVINCE => "省级",
-            Level::PREFECTURE => "地级",
-            Level::COUNTY => "县级",
+            Level::Province => "省级",
+            Level::Prefecture => "地级",
+            Level::County => "县级",
         }
     }
 
     fn from_code(code: u32) -> Level {
         if code % 100 != 0 {
-            Level::COUNTY
+            Level::County
         } else if code % 10000 != 0 {
-            Level::PREFECTURE
+            Level::Prefecture
         } else {
-            Level::PROVINCE
+            Level::Province
         }
     }
 }

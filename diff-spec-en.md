@@ -1,4 +1,4 @@
-# The diff specification used in this project
+# The diff specification used in this project (outdated)
 
 ## Overview
 
