@@ -33,8 +33,8 @@ fn main() -> Result<()> {
             let code = line
                 .get(0..6)
                 .and_then(|s| s.parse().ok())
-                .unwrap_or_else(|| panic!("invalid line in `{}.txt`: {}", file_stem, line));
-            let name = line[7..].to_owned();
+                .unwrap_or_else(|| panic!("invalid line in `{file_stem}.txt`: {line}"));
+            let name = line[7..].into();
 
             cur_map.insert(code, name);
         })?;
@@ -61,12 +61,12 @@ fn main() -> Result<()> {
                 }
             }
         }
-        println!("Processed: {}", file_stem);
+        println!("Processed: {file_stem}");
     }
 
     let file = File::create(RESULT_FILENAME).expect("failed to create result file");
     let mut buf = BufWriter::new(file);
-    write!(buf, "{}", CSV_HEADER)?;
+    write!(buf, "{CSV_HEADER}")?;
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -135,7 +135,7 @@ fn write_entry(
         start
     )?;
     if let Some(end) = end {
-        write!(buf, "{}", end)?;
+        write!(buf, "{end}")?;
     }
     writeln!(buf)
 }

@@ -37,7 +37,7 @@ fn main() -> Result<()> {
         let mut records = HashMap::<&str, usize>::new();
 
         for line in res.lines().skip(4) {
-            if !line.starts_with(['@', '\\'].as_ref()) {
+            if !line.starts_with(['@', '\\']) {
                 match records.entry(&line[1..]) {
                     Entry::Occupied(e) => {
                         lines[*e.get()] = "";
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
 
         for line in lines {
             if !line.is_empty() {
-                writeln!(bw, "{}", line)?;
+                writeln!(bw, "{line}")?;
             }
         }
     }
@@ -64,5 +64,5 @@ fn main() -> Result<()> {
 }
 
 fn file_stems() -> impl Iterator<Item = String> {
-    files("data").map(|path| path.file_stem().unwrap().to_string_lossy().into_owned())
+    files("data").map(|path| path.file_stem().unwrap().to_string_lossy().into())
 }
