@@ -27,15 +27,7 @@ fn main() -> Result<()> {
 
         let time: u32 = file_stem.parse().expect("non-digit file stem");
 
-        let file = File::open(&path).expect("failed to open file");
-
-        for_each_line_in(file, |line| {
-            let code = line
-                .get(0..6)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or_else(|| panic!("invalid line in `{file_stem}.txt`: {line}"));
-            let name = line[7..].into();
-
+        read_data(&path, |code, name| {
             cur_map.insert(code, name);
         })?;
 

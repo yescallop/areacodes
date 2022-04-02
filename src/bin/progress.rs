@@ -1,11 +1,9 @@
 use areacodes::*;
-use std::fs::File;
 
 fn main() -> Result<()> {
     let (mut total, mut finished) = (0u32, 0u32);
     for path in files("diff") {
-        let file = File::open(&path)?;
-        for_each_line_in(file, |line| {
+        for_each_line_in(&path, |line| {
             if line.starts_with(['-', '+', '=']) {
                 total += 1;
                 if line.contains(['>', '<']) {
