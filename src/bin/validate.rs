@@ -5,6 +5,7 @@ use areacodes::{files, for_each_line_in, read_data};
 fn main() -> io::Result<()> {
     let mut src = DataTable::new();
     let mut dst = DataTable::new();
+    let mut rem_map = HashMap::<i32, Vec<i32>>::with_capacity(256);
 
     for diff in files("diff") {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
@@ -50,13 +51,24 @@ fn main() -> io::Result<()> {
                 );
             }
 
-            let table = if line.fwd { &dst } else { &src };
-
-            validate(&table, line);
+            if line.fwd {
+                validate(&dst, &src, &mut rem_map, line);
+            } else {
+                validate(&src, &dst, &mut rem_map, line);
+            }
         })?;
+
+        for (code, rem_codes) in &rem_map {
+            for rem_code in rem_codes {
+                if rem_map.contains_key(rem_code) {
+                    println!("{rem_code}@{code}: asymmetry found");
+                }
+            }
+        }
 
         src.clear();
         dst.clear();
+        rem_map.clear();
     }
 
     Ok(())
@@ -72,7 +84,7 @@ fn code_dist(a: u32, b: u32) -> u32 {
     }
 }
 
-fn validate(table: &DataTable, line: Line) {
+fn validate(table: &DataTable, origin: &DataTable, rem_map: &mut HashMap<i32, Vec<i32>>, line: Line) {
     let code = line.code;
 
     for sel in line.attr {
@@ -88,18 +100,20 @@ fn validate(table: &DataTable, line: Line) {
 
                 let mut min_dist = 4;
                 let mut cnt = 0u32;
+                let mut res_code = 0;
 
                 for &sel_code in sel_codes {
-                    if let Some(parent) = parent {
-                        if parent != table.parent_name_by_code(sel_code) {
-                            continue;
-                        }
+                    if parent.is_some()
+                        && table.name_by_code(table.parent_code(sel_code)) != parent.as_deref()
+                    {
+                        continue;
                     }
 
                     let dist = code_dist(code, sel_code);
                     if dist < min_dist {
                         min_dist = dist;
-                        cnt = 1
+                        cnt = 1;
+                        res_code = sel_code;
                     } else if dist == min_dist {
                         cnt += 1;
                     }
@@ -109,6 +123,21 @@ fn validate(table: &DataTable, line: Line) {
                     println!("{name}@{code}: not found");
                 } else if cnt != 1 {
                     println!("{name}@{code}: multiple records found");
+                } else {
+                    let (code, res_code) = if line.fwd {
+                        (-(code as i32), res_code as i32)
+                    } else {
+                        (code as i32, -(res_code as i32))
+                    };
+
+                    if let Some(res) = rem_map.get_mut(&res_code) {
+                        if let Some(i) = res.iter().position(|&x| x == code) {
+                            res.swap_remove(i);
+                            continue;
+                        }
+                    }
+                    let rem_codes = rem_map.entry(code).or_default();
+                    rem_codes.push(res_code);
                 }
             }
             Selector::CurCode => {
@@ -116,7 +145,14 @@ fn validate(table: &DataTable, line: Line) {
                     println!("{code}: not found");
                 }
             }
-            Selector::ParentCode => (),
+            Selector::ParentCode => {
+                let parent = origin.parent_code(code);
+                if let Some(_parent_name) = table.name_by_code(parent) {
+                    // println!("..@{code} {} = {_parent_name}", line.name);
+                } else {
+                    panic!("..@{code}: not found");
+                }
+            }
         }
     }
 }
@@ -135,10 +171,16 @@ impl DataTable {
     }
 
     fn name_by_code(&self, code: u32) -> Option<&str> {
-        self.c2n.get(&code).map(|x| &**x)
+        self.c2n.get(&code).map(|x| &**x).or_else(|| {
+            if code == 0 {
+                Some("中华人民共和国")
+            } else {
+                None
+            }
+        })
     }
 
-    fn parent_name_by_code(&self, code: u32) -> &str {
+    fn parent_code(&self, code: u32) -> u32 {
         fn parent(code: u32) -> u32 {
             if code % 10000 == 0 {
                 0
@@ -148,13 +190,8 @@ impl DataTable {
                 code / 100 * 100
             }
         }
-
         let code = parent(code);
-        self.c2n
-            .get(&code)
-            .or_else(|| self.c2n.get(&parent(code)))
-            .map(|x| &**x)
-            .unwrap_or("中华人民共和国")
+        self.c2n.get(&code).map_or_else(|| parent(code), |_| code)
     }
 
     fn codes_by_name(&self, name: &str) -> Option<&[u32]> {
