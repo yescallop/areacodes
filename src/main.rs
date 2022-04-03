@@ -33,26 +33,41 @@ fn main() -> Result<()> {
 
         for (code, area) in &mut all_map {
             if !cur_map.contains_key(code) && !area.deprecated {
-                area.entries.push(Entry { time, name: None });
+                area.entries.push(Entry {
+                    time,
+                    name: None,
+                    parent_name: None,
+                });
                 area.deprecated = true;
             }
         }
 
-        for (code, name) in cur_map.drain() {
-            let name = Some(name);
+        for (&code, name) in &cur_map {
+            let parent_name = parent_name(&cur_map, code);
             match all_map.entry(code) {
                 Occupied(e) => {
-                    let area = e.into_mut();
-                    if area.entries.last().unwrap().name != name {
-                        area.entries.push(Entry { time, name })
+                    let last = e.get().entries.last().unwrap();
+                    if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
+                    {
+                        let area = e.into_mut();
+                        area.entries.push(Entry {
+                            time,
+                            name: Some(name.clone()),
+                            parent_name: parent_name.map(Clone::clone),
+                        });
+                        area.deprecated = false;
                     }
-                    area.deprecated = false;
                 }
                 Vacant(e) => {
-                    e.insert(Area::new(Entry { time, name }));
+                    e.insert(Area::new(Entry {
+                        time,
+                        name: Some(name.clone()),
+                        parent_name: parent_name.map(Clone::clone),
+                    }));
                 }
             }
         }
+        cur_map.clear();
         println!("Processed: {file_stem}");
     }
 
@@ -81,6 +96,17 @@ fn main() -> Result<()> {
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
+}
+
+fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
+    let code = if code % 100 != 0 {
+        code / 100 * 100
+    } else if code % 10000 != 0 {
+        code / 10000 * 10000
+    } else {
+        0
+    };
+    map.get(&code)
 }
 
 fn write_entry(
@@ -200,4 +226,5 @@ impl Area {
 struct Entry {
     time: u32,
     name: Option<String>,
+    parent_name: Option<String>,
 }

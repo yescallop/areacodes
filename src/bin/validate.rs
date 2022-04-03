@@ -37,18 +37,22 @@ fn main() -> io::Result<()> {
                 );
             } else if line.fwd {
                 assert!(
-                    src.name_by_code(line.code) == Some(&line.name)
-                        && dst.name_by_code(line.code) != Some(&line.name),
+                    src.name_by_code(line.code) == Some(&line.name),
                     "{}: invalid deletion",
                     line.code
                 );
+                if dst.name_by_code(line.code) == Some(&line.name) {
+                    println!("{}: same-name deletion", line.code);
+                }
             } else {
                 assert!(
-                    dst.name_by_code(line.code) == Some(&line.name)
-                        && src.name_by_code(line.code) != Some(&line.name),
+                    dst.name_by_code(line.code) == Some(&line.name),
                     "{}: invalid addition",
                     line.code
                 );
+                if src.name_by_code(line.code) == Some(&line.name) {
+                    println!("{}: same-name addition", line.code);
+                }
             }
 
             if line.fwd {
@@ -84,7 +88,12 @@ fn code_dist(a: u32, b: u32) -> u32 {
     }
 }
 
-fn validate(table: &DataTable, origin: &DataTable, rem_map: &mut HashMap<i32, Vec<i32>>, line: Line) {
+fn validate(
+    table: &DataTable,
+    origin: &DataTable,
+    rem_map: &mut HashMap<i32, Vec<i32>>,
+    line: Line,
+) {
     let code = line.code;
 
     for sel in line.attr {
@@ -182,12 +191,12 @@ impl DataTable {
 
     fn parent_code(&self, code: u32) -> u32 {
         fn parent(code: u32) -> u32 {
-            if code % 10000 == 0 {
-                0
-            } else if code % 100 == 0 {
+            if code % 100 != 0 {
+                code / 100 * 100
+            } else if code % 10000 != 0 {
                 code / 10000 * 10000
             } else {
-                code / 100 * 100
+                0
             }
         }
         let code = parent(code);
