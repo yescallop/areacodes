@@ -1,4 +1,4 @@
-# areacodes
+# areacodes (outdated)
 
 This project collects and analyzes the historical data of **Administrative division codes of the People's Republic of China** (at and above county level) and the data of the correspondence between old and new codes.
 

@@ -6,6 +6,9 @@ use std::{
 
 pub use std::io::Result;
 
+mod diff;
+pub use diff::*;
+
 pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Result<()> {
     let file = File::open(path)?;
     let mut br = BufReader::new(file);

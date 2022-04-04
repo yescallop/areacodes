@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry::*, HashMap},
+    collections::{hash_map::Entry::*, BTreeSet, HashMap},
     fs::File,
     io::{BufWriter, Result, Write},
     time::Instant,
@@ -10,7 +10,7 @@ use areacodes::*;
 const DATA_DIRECTORY: &str = "data";
 const RESULT_FILENAME: &str = "result.csv";
 const CSV_HEADER: &str =
-    "\u{FEFF}代码,一级行政区,二级行政区（变更前）,名称,级别,状态,启用时间（含）,弃用时间（不含）\n";
+    "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,弃用时间,新代码\n";
 
 fn main() -> Result<()> {
     let start = Instant::now();
@@ -33,11 +33,7 @@ fn main() -> Result<()> {
 
         for (code, area) in &mut all_map {
             if !cur_map.contains_key(code) && !area.deprecated {
-                area.entries.push(Entry {
-                    time,
-                    name: None,
-                    parent_name: None,
-                });
+                area.entries.push(Entry::new(time, None, None));
                 area.deprecated = true;
             }
         }
@@ -50,26 +46,20 @@ fn main() -> Result<()> {
                     if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
                     {
                         let area = e.into_mut();
-                        area.entries.push(Entry {
-                            time,
-                            name: Some(name.clone()),
-                            parent_name: parent_name.map(Clone::clone),
-                        });
+                        area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
                 }
                 Vacant(e) => {
-                    e.insert(Area::new(Entry {
-                        time,
-                        name: Some(name.clone()),
-                        parent_name: parent_name.map(Clone::clone),
-                    }));
+                    e.insert(Area::new(Entry::new(time, Some(name), parent_name)));
                 }
             }
         }
         cur_map.clear();
         println!("Processed: {file_stem}");
     }
+
+    insert_diff(&mut all_map)?;
 
     let file = File::create(RESULT_FILENAME).expect("failed to create result file");
     let mut buf = BufWriter::new(file);
@@ -89,13 +79,41 @@ fn main() -> Result<()> {
                 None => continue,
             };
             let end = entries.get(i + 1).map(|e| e.time);
-            write_entry(&mut buf, &all_map, code, name, entry.time, end, i == last)?;
+            write_entry(
+                &mut buf,
+                &all_map,
+                code,
+                name,
+                entry.time,
+                end,
+                i == last,
+                &entry.attr,
+            )?;
         }
     }
     buf.flush()?;
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
+}
+
+fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
+    for_each_fwd_diff(|fd| {
+        if fd.code == 0 {
+            return;
+        }
+        let area = map.get_mut(&fd.code).unwrap();
+        let entry = area
+            .entries
+            .iter_mut()
+            .take_while(|e| e.time < fd.time)
+            .last()
+            .unwrap();
+        entry.attr.extend(fd.attr.iter().filter(|&&x| {
+            let x = parent(x);
+            x != fd.code && parent(x) != fd.code
+        }));
+    })
 }
 
 fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
@@ -117,6 +135,7 @@ fn write_entry(
     start: u32,
     end: Option<u32>,
     is_last: bool,
+    attr: &BTreeSet<u32>,
 ) -> Result<()> {
     let level = Level::from_code(code);
 
@@ -155,6 +174,17 @@ fn write_entry(
     if let Some(end) = end {
         write!(buf, "{end}")?;
     }
+
+    write!(buf, ",")?;
+    for (i, &new_code) in attr.iter().enumerate() {
+        if i != 0 {
+            write!(buf, ";")?;
+        } else if attr.len() == 1 && new_code == code {
+            break;
+        }
+        write!(buf, "{new_code}")?;
+    }
+
     writeln!(buf)
 }
 
@@ -184,6 +214,7 @@ impl Level {
     }
 }
 
+#[derive(Debug)]
 struct Area {
     entries: Vec<Entry>,
     deprecated: bool,
@@ -223,8 +254,21 @@ impl Area {
     }
 }
 
+#[derive(Debug)]
 struct Entry {
     time: u32,
     name: Option<String>,
     parent_name: Option<String>,
+    attr: BTreeSet<u32>,
+}
+
+impl Entry {
+    fn new(time: u32, name: Option<&String>, parent_name: Option<&String>) -> Entry {
+        Entry {
+            time,
+            name: name.map(Clone::clone),
+            parent_name: parent_name.map(Clone::clone),
+            attr: BTreeSet::new(),
+        }
+    }
 }
