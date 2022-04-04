@@ -10,7 +10,7 @@ use areacodes::*;
 const DATA_DIRECTORY: &str = "data";
 const RESULT_FILENAME: &str = "result.csv";
 const CSV_HEADER: &str =
-    "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,弃用时间,新代码\n";
+    "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
 
 fn main() -> Result<()> {
     let start = Instant::now();
@@ -109,10 +109,15 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
             .take_while(|e| e.time < fd.time)
             .last()
             .unwrap();
-        entry.attr.extend(fd.attr.iter().filter(|&&x| {
-            let x = parent(x);
-            x != fd.code && parent(x) != fd.code
-        }));
+        entry.attr.extend(
+            fd.attr
+                .iter()
+                .filter(|&&x| {
+                    let x = parent(x);
+                    x != fd.code && parent(x) != fd.code
+                })
+                .map(|&x| (fd.time, x)),
+        );
     })
 }
 
@@ -135,7 +140,7 @@ fn write_entry(
     start: u32,
     end: Option<u32>,
     is_last: bool,
-    attr: &BTreeSet<u32>,
+    attr: &BTreeSet<(u32, u32)>,
 ) -> Result<()> {
     let level = Level::from_code(code);
 
@@ -176,13 +181,16 @@ fn write_entry(
     }
 
     write!(buf, ",")?;
-    for (i, &new_code) in attr.iter().enumerate() {
+    for (i, &(new_time, new_code)) in attr.iter().enumerate() {
         if i != 0 {
             write!(buf, ";")?;
         } else if attr.len() == 1 && new_code == code {
             break;
         }
         write!(buf, "{new_code}")?;
+        if end != Some(new_time) {
+            write!(buf, "[{new_time}]")?;
+        }
     }
 
     writeln!(buf)
@@ -259,7 +267,7 @@ struct Entry {
     time: u32,
     name: Option<String>,
     parent_name: Option<String>,
-    attr: BTreeSet<u32>,
+    attr: BTreeSet<(u32, u32)>,
 }
 
 impl Entry {
