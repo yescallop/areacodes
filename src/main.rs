@@ -8,7 +8,8 @@ use std::{
 use areacodes::*;
 
 const DATA_DIRECTORY: &str = "data";
-const RESULT_FILENAME: &str = "result.csv";
+const RESULT_CSV_FILENAME: &str = "result.csv";
+const RESULT_JSON_FILENAME: &str = "result.json";
 const CSV_HEADER: &str =
     "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
 
@@ -42,10 +43,11 @@ fn main() -> Result<()> {
             let parent_name = parent_name(&cur_map, code);
             match all_map.entry(code) {
                 Occupied(e) => {
-                    let last = e.get().entries.last().unwrap();
+                    let area = e.into_mut();
+                    let last = area.entries.last_mut().unwrap();
                     if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
                     {
-                        let area = e.into_mut();
+                        last.attr.insert((time, code));
                         area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
@@ -61,9 +63,18 @@ fn main() -> Result<()> {
 
     insert_diff(&mut all_map)?;
 
-    let file = File::create(RESULT_FILENAME).expect("failed to create result file");
+    let file = File::create(RESULT_CSV_FILENAME).expect("failed to create result file");
     let mut buf = BufWriter::new(file);
     write!(buf, "{CSV_HEADER}")?;
+
+    let mut root = JsonEntry {
+        code: 0,
+        name: "",
+        start: 0,
+        end: None,
+        successors: vec![],
+        children: vec![],
+    };
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -81,6 +92,7 @@ fn main() -> Result<()> {
             let end = entries.get(i + 1).map(|e| e.time);
             write_entry(
                 &mut buf,
+                &mut root,
                 &all_map,
                 code,
                 name,
@@ -92,6 +104,9 @@ fn main() -> Result<()> {
         }
     }
     buf.flush()?;
+
+    let file = File::create(RESULT_JSON_FILENAME).expect("failed to create result file");
+    serde_json::to_writer(file, &root.children).expect("failed to output json");
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
@@ -132,31 +147,59 @@ fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
     map.get(&code)
 }
 
-fn write_entry(
+fn write_entry<'a>(
     buf: &mut impl Write,
+    root: &mut JsonEntry<'a>,
     map: &HashMap<u32, Area>,
     code: u32,
-    name: &str,
+    name: &'a str,
     start: u32,
     end: Option<u32>,
     is_last: bool,
     attr: &BTreeSet<(u32, u32)>,
 ) -> Result<()> {
+    let mut parent = root;
     let level = Level::from_code(code);
 
-    let province = map[&(code / 10000 * 10000)].entries[0]
-        .name
-        .as_deref()
-        .unwrap();
-    let prefecture = match level {
-        Level::Prefecture => name,
-        Level::County => Some(code / 100 * 100)
-            .filter(|&code| matches!(Level::from_code(code), Level::Prefecture))
-            .and_then(|code| map.get(&code))
-            .and_then(|area| area.last_name_intersecting(start, end))
-            .unwrap_or("直辖"),
-        Level::Province => "",
+    let prov_code = code / 10000 * 10000;
+    let prov_name = map[&prov_code].entries[0].name.as_deref().unwrap();
+    let pref_name = if level == Level::Province {
+        ""
+    } else {
+        parent = parent
+            .children
+            .iter_mut()
+            .find(|e| e.code == prov_code)
+            .unwrap();
+        if level == Level::Prefecture {
+            name
+        } else {
+            let pref_code = code / 100 * 100;
+            let pref_name = Some(pref_code)
+                .filter(|&code| Level::from_code(code) == Level::Prefecture)
+                .and_then(|code| map.get(&code))
+                .and_then(|area| area.last_name_intersecting(start, end));
+            if let Some(name) = pref_name {
+                parent = parent
+                    .children
+                    .iter_mut()
+                    .find(|e| e.code == pref_code && e.start <= start)
+                    .unwrap();
+                name
+            } else {
+                "直辖"
+            }
+        }
     };
+
+    parent.children.push(JsonEntry {
+        code,
+        name,
+        start,
+        end,
+        successors: attr.iter().map(|&(time, code)| (code, time)).collect(),
+        children: vec![],
+    });
 
     let status = if end.is_none() {
         "启用"
@@ -169,8 +212,8 @@ fn write_entry(
         buf,
         "{},{},{},{},{},{},{},",
         code,
-        province,
-        prefecture,
+        prov_name,
+        pref_name,
         name,
         level.desc(),
         status,
@@ -194,6 +237,7 @@ fn write_entry(
     writeln!(buf)
 }
 
+#[derive(PartialEq, Eq)]
 enum Level {
     Province,
     Prefecture,

@@ -9,6 +9,19 @@ pub use std::io::Result;
 mod diff;
 pub use diff::*;
 
+#[derive(serde::Serialize)]
+pub struct JsonEntry<'a> {
+    pub code: u32,
+    pub name: &'a str,
+    pub start: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end: Option<u32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub successors: Vec<(u32, u32)>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<JsonEntry<'a>>,
+}
+
 pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Result<()> {
     let file = File::open(path)?;
     let mut br = BufReader::new(file);
