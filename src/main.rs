@@ -184,8 +184,6 @@ fn write_entry(
     for (i, &(new_time, new_code)) in attr.iter().enumerate() {
         if i != 0 {
             write!(buf, ";")?;
-        } else if attr.len() == 1 && new_code == code {
-            break;
         }
         write!(buf, "{new_code}")?;
         if end != Some(new_time) {
