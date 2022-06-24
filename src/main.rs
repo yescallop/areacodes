@@ -9,7 +9,7 @@ use areacodes::*;
 
 const DATA_DIRECTORY: &str = "data";
 const RESULT_CSV_FILENAME: &str = "result.csv";
-const RESULT_JSON_FILENAME: &str = "result.json";
+const RESULT_JSON_FILENAME: &str = "codes.json";
 const CSV_HEADER: &str =
     "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
 
