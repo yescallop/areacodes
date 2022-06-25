@@ -10,16 +10,21 @@ const successors = computed(() => {
   if (sus == undefined) {
     return null;
   }
+  let time_or_default = (su: any) => {
+    return su.time ? su.time : props.item.end;
+  };
+
   let out = [];
-  let codes = String(sus[0][0]);
-  let lastTime = sus[0][1];
+  let codes = String(sus[0].code);
+  let lastTime = time_or_default(sus[0]);
   sus.slice(1).forEach(su => {
-    if (su[1] == lastTime) {
-      codes += "," + su[0];
+    let time = time_or_default(su);
+    if (time == lastTime) {
+      codes += "," + su.code;
     } else {
       out.push({ codes, time: lastTime });
-      codes = String(su[0]);
-      lastTime = su[1];
+      codes = String(su.code);
+      lastTime = time;
     }
   });
   out.push({ codes, time: lastTime });
@@ -39,10 +44,11 @@ function toggle() {
           item.code
       }}
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
-      {{ item.name }}<ul v-if="successors" class="successors">
-        <li v-for="su in successors">=> {{ su.codes }} &lt;{{ su.time }}&gt;</li>
-      </ul>
+      {{ item.name }}
     </div>
+    <ul v-if="successors" class="successors">
+      <li v-for="su in successors">=> {{ su.codes }} &lt;{{ su.time }}&gt;</li>
+    </ul>
     <ul v-if="isOpen">
       <TreeItem v-for="child in item.children" :item="child"></TreeItem>
     </ul>
@@ -71,9 +77,5 @@ ul {
 .successors {
   color: green;
   padding-left: 5ch;
-}
-
-.leaf .successors {
-  padding-left: 1ch;
 }
 </style>

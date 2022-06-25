@@ -45,9 +45,15 @@ fn main() -> Result<()> {
                 Occupied(e) => {
                     let area = e.into_mut();
                     let last = area.entries.last_mut().unwrap();
-                    if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
-                    {
-                        last.attr.insert((time, code));
+                    let parent_ne = last.parent_name.as_ref() != parent_name;
+                    if parent_ne {
+                        last.attr.insert(Successor {
+                            code,
+                            time,
+                            optional: false,
+                        });
+                    }
+                    if parent_ne || last.name.as_ref() != Some(name) {
                         area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
@@ -124,15 +130,11 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
             .take_while(|e| e.time < fd.time)
             .last()
             .unwrap();
-        entry.attr.extend(
-            fd.attr
-                .iter()
-                .filter(|&&x| {
-                    let x = parent(x);
-                    x != fd.code && parent(x) != fd.code
-                })
-                .map(|&x| (fd.time, x)),
-        );
+        entry.attr.extend(fd.attr.iter().map(|&code| Successor {
+            time: fd.time,
+            code,
+            optional: fd.optional,
+        }));
     })
 }
 
@@ -156,9 +158,9 @@ fn write_entry<'a>(
     start: u32,
     end: Option<u32>,
     is_last: bool,
-    attr: &BTreeSet<(u32, u32)>,
+    attr: &BTreeSet<Successor>,
 ) -> Result<()> {
-    let mut parent = root;
+    let mut entry = root;
     let level = Level::from_code(code);
 
     let prov_code = code / 10000 * 10000;
@@ -166,7 +168,7 @@ fn write_entry<'a>(
     let pref_name = if level == Level::Province {
         ""
     } else {
-        parent = parent
+        entry = entry
             .children
             .iter_mut()
             .find(|e| e.code == prov_code)
@@ -180,7 +182,7 @@ fn write_entry<'a>(
                 .and_then(|code| map.get(&code))
                 .and_then(|area| area.last_name_intersecting(start, end));
             if let Some(name) = pref_name {
-                parent = parent
+                entry = entry
                     .children
                     .iter_mut()
                     .find(|e| e.code == pref_code && e.start <= start)
@@ -192,12 +194,21 @@ fn write_entry<'a>(
         }
     };
 
-    parent.children.push(JsonEntry {
+    entry.children.push(JsonEntry {
         code,
         name,
         start,
         end,
-        successors: attr.iter().map(|&(time, code)| (code, time)).collect(),
+        successors: attr
+            .iter()
+            .copied()
+            .map(|mut su| {
+                if end == Some(su.time) {
+                    su.time = 0;
+                }
+                su
+            })
+            .collect(),
         children: vec![],
     });
 
@@ -224,13 +235,20 @@ fn write_entry<'a>(
     }
 
     write!(buf, ",")?;
-    for (i, &(new_time, new_code)) in attr.iter().enumerate() {
+    for (i, &su) in attr
+        .iter()
+        .filter(|su| {
+            let x = parent(su.code);
+            x != code && parent(x) != code
+        })
+        .enumerate()
+    {
         if i != 0 {
             write!(buf, ";")?;
         }
-        write!(buf, "{new_code}")?;
-        if end != Some(new_time) {
-            write!(buf, "[{new_time}]")?;
+        write!(buf, "{}", su.code)?;
+        if end != Some(su.time) {
+            write!(buf, "[{}]", su.time)?;
         }
     }
 
@@ -309,7 +327,7 @@ struct Entry {
     time: u32,
     name: Option<String>,
     parent_name: Option<String>,
-    attr: BTreeSet<(u32, u32)>,
+    attr: BTreeSet<Successor>,
 }
 
 impl Entry {

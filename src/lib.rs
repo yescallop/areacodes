@@ -17,9 +17,22 @@ pub struct JsonEntry<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end: Option<u32>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub successors: Vec<(u32, u32)>,
+    pub successors: Vec<Successor>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<JsonEntry<'a>>,
+}
+
+#[derive(serde::Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Successor {
+    #[serde(skip_serializing_if = "is_default")]
+    pub time: u32,
+    pub code: u32,
+    #[serde(skip_serializing_if = "is_default")]
+    pub optional: bool,
+}
+
+fn is_default<T: Default + PartialEq>(t: &T) -> bool {
+    *t == T::default()
 }
 
 pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Result<()> {

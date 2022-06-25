@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io};
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 
 use crate::{files, for_each_line_in, read_data};
 
@@ -7,6 +10,7 @@ pub struct FwdDiff<'a> {
     pub time: u32,
     pub code: u32,
     pub internal: bool,
+    pub optional: bool,
     pub attr: &'a [u32],
 }
 
@@ -71,12 +75,14 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
             select(table, origin, &mut rem, &line, &mut attr);
 
             assert!(!attr.is_empty(), "{code}: empty attr");
+            let optional = origin.has_children(code);
 
             if line.fwd {
                 f(FwdDiff {
                     time,
                     code,
                     internal: line.internal,
+                    optional,
                     attr: &attr[..],
                 })
             } else {
@@ -85,6 +91,7 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
                         time,
                         code: sel_code,
                         internal: line.internal,
+                        optional,
                         attr: &[code],
                     })
                 }
@@ -210,7 +217,7 @@ fn select(
 struct DataTable {
     c2n: HashMap<u32, String>,
     n2c: HashMap<String, Vec<u32>>,
-    // has_children: HashSet<u32>,
+    has_children: HashSet<u32>,
 }
 
 impl DataTable {
@@ -218,7 +225,7 @@ impl DataTable {
         DataTable {
             c2n: HashMap::with_capacity(4096),
             n2c: HashMap::with_capacity(4096),
-            // has_children: HashSet::with_capacity(512),
+            has_children: HashSet::with_capacity(512),
         }
     }
 
@@ -238,20 +245,20 @@ impl DataTable {
         self.n2c.get(name).map(|x| &**x)
     }
 
-    // fn has_children(&self, code: u32) -> bool {
-    //     self.has_children.contains(&code)
-    // }
+    fn has_children(&self, code: u32) -> bool {
+        self.has_children.contains(&code)
+    }
 
     fn insert(&mut self, code: u32, name: String) {
         self.c2n.insert(code, name.clone());
         self.n2c.entry(name).or_default().push(code);
-        // self.has_children.insert(parent(code));
+        self.has_children.insert(self.parent_code(code));
     }
 
     fn clear(&mut self) {
         self.c2n.clear();
         self.n2c.clear();
-        // self.has_children.clear();
+        self.has_children.clear();
     }
 }
 
