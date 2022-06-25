@@ -50,7 +50,7 @@ fn main() -> Result<()> {
                         last.attr.insert(Successor {
                             code,
                             time,
-                            optional: false,
+                            opt: false,
                         });
                     }
                     if parent_ne || last.name.as_ref() != Some(name) {
@@ -78,7 +78,7 @@ fn main() -> Result<()> {
         name: "",
         start: 0,
         end: None,
-        successors: vec![],
+        sus: vec![],
         children: vec![],
     };
 
@@ -133,7 +133,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
         entry.attr.extend(fd.attr.iter().map(|&code| Successor {
             time: fd.time,
             code,
-            optional: fd.optional,
+            opt: fd.optional,
         }));
     })
 }
@@ -199,7 +199,7 @@ fn write_entry<'a>(
         name,
         start,
         end,
-        successors: attr
+        sus: attr
             .iter()
             .copied()
             .map(|mut su| {
@@ -235,14 +235,7 @@ fn write_entry<'a>(
     }
 
     write!(buf, ",")?;
-    for (i, &su) in attr
-        .iter()
-        .filter(|su| {
-            let x = parent(su.code);
-            x != code && parent(x) != code
-        })
-        .enumerate()
-    {
+    for (i, &su) in attr.iter().enumerate() {
         if i != 0 {
             write!(buf, ";")?;
         }
