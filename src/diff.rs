@@ -163,7 +163,13 @@ fn select(
                         continue;
                     }
 
-                    let dist = code_dist(code, sel_code);
+                    let mut dist = code_dist(code, sel_code);
+                    if dist == 1
+                        && table.name_by_code(table.parent_code(sel_code))
+                            != origin.name_by_code(origin.parent_code(sel_code))
+                    {
+                        dist = 2;
+                    }
                     if dist < min_dist {
                         min_dist = dist;
                         cnt = 1;
@@ -204,13 +210,17 @@ fn select(
             (code as i32, -(res_code as i32))
         };
 
+        let mut push = true;
         if let Some(rem) = rem.get_mut(&res_code) {
             if let Some(i) = rem.iter().position(|&x| x == code) {
                 rem.swap_remove(i);
-                continue;
+                push = false;
             }
         }
-        rem.entry(code).or_default().push(res_code);
+        let vec = rem.entry(code).or_default();
+        if push {
+            vec.push(res_code);
+        }
     }
 }
 
