@@ -8,7 +8,7 @@
 
 | 数据集名称 | 规范 | 目录 | 汇总 | 进度 |
 | - | - | - | - | - |
-| 历史行政区划代码 | 无 | [data](data) | [CSV] \| [JSON] | 100% |
+| 历史行政区划代码 | 无 | [data](data) | [在线预览] \| [JSON] \| [CSV] | 100% |
 | 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 同上 | 100% |
 
 ## CSV 汇总表说明
@@ -34,6 +34,7 @@
 - [县级以上行政区划变更情况][2]，民政部
 - [中华人民共和国行政区划沿革][3]，中国政府网
 
+[在线预览]: https://yescallop.cn/areacodes/
 [CSV]: https://raw.githubusercontent.com/yescallop/areacodes/master/result.csv
 [JSON]: https://raw.githubusercontent.com/yescallop/areacodes/master/codes.json
 [1]: http://www.mca.gov.cn/article/sj/xzqh/1980/

@@ -90,7 +90,7 @@ function toggle() {
   </li>
 </template>
 
-<style scoped>
+<style>
 .obsolete {
   color: gray;
 }
