@@ -3,7 +3,13 @@ import { ref } from 'vue';
 import TreeItem from './TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
-const codes = ref<any[]>([]);
+const codes = ref<any[]>([{
+  code: 233333,
+  name: "加载中...",
+  start: new Date().getFullYear(),
+}]);
+codes.value[0].children = codes.value;
+
 fetch(codesUrl)
   .then(resp => resp.json())
   .then(json => codes.value = json);
@@ -22,7 +28,7 @@ const guide = {
       code: 2,
       name: "灰色行表示已弃用的代码",
       start: 1980,
-      end: new Date().getFullYear(),
+      end: 1990,
     },
     {
       code: 3,

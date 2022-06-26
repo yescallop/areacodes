@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 interface Successor {
   opt?: boolean,
@@ -21,14 +21,10 @@ interface Su {
   time: number,
 }
 
-const props = defineProps<{
-  item: Item,
-}>();
-const isFolder = props.item.children != undefined;
+const props = defineProps<{ item: Item; }>();
+const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(false);
-const sus = get_sus();
-
-function get_sus(): { non_opt: Su[], opt: Su[]; } {
+const sus = computed(() => {
   let sus = props.item.sus != undefined ? props.item.sus : [];
   let sus_opt: Successor[] = [];
   let i = sus.findIndex(su => su.opt);
@@ -37,7 +33,7 @@ function get_sus(): { non_opt: Su[], opt: Su[]; } {
     sus = sus.slice(0, i);
   }
   return { non_opt: zip_sus(sus), opt: zip_sus(sus_opt) };
-}
+});
 
 function zip_sus(sus: Successor[]): Su[] {
   if (sus.length == 0) {
