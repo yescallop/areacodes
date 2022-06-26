@@ -45,15 +45,8 @@ fn main() -> Result<()> {
                 Occupied(e) => {
                     let area = e.into_mut();
                     let last = area.entries.last_mut().unwrap();
-                    let parent_ne = last.parent_name.as_ref() != parent_name;
-                    if parent_ne {
-                        last.attr.insert(Successor {
-                            code,
-                            time,
-                            opt: false,
-                        });
-                    }
-                    if parent_ne || last.name.as_ref() != Some(name) {
+                    if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
+                    {
                         area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
@@ -127,15 +120,29 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
         let entry = area
             .entries
             .iter_mut()
-            .take_while(|e| e.time < fd.time)
-            .last()
+            .rev()
+            .find(|e| e.time < fd.time)
             .unwrap();
         entry.attr.extend(fd.attr.iter().map(|&code| Successor {
             time: fd.time,
             code,
             opt: fd.optional,
         }));
-    })
+    })?;
+    for (&code, area) in map.iter_mut() {
+        for i in 0..area.entries.len() - 1 {
+            let next_time = area.entries[i + 1].time;
+            let entry = &mut area.entries[i];
+            if entry.attr.iter().rev().next().map(|su| su.time) != Some(next_time) {
+                entry.attr.insert(Successor {
+                    opt: false,
+                    time: next_time,
+                    code,
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
