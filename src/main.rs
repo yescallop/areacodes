@@ -242,13 +242,14 @@ fn write_entry<'a>(
     }
 
     write!(buf, ",")?;
-    for (i, &su) in attr.iter().enumerate() {
+    let sus: BTreeSet<_> = attr.iter().map(|su| (su.time, su.code)).collect();
+    for (i, &(time, code)) in sus.iter().enumerate() {
         if i != 0 {
             write!(buf, ";")?;
         }
-        write!(buf, "{}", su.code)?;
-        if end != Some(su.time) {
-            write!(buf, "[{}]", su.time)?;
+        write!(buf, "{}", code)?;
+        if end != Some(time) {
+            write!(buf, "[{}]", time)?;
         }
     }
 
