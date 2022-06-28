@@ -71,7 +71,7 @@ fn main() -> Result<()> {
         name: "",
         start: 0,
         end: None,
-        sus: vec![],
+        successors: vec![],
         children: vec![],
     };
 
@@ -206,9 +206,10 @@ fn write_entry<'a>(
         name,
         start,
         end,
-        sus: attr
+        successors: attr
             .iter()
             .copied()
+            .filter(|su| !su.opt)
             .map(|mut su| {
                 if end == Some(su.time) {
                     su.time = 0;

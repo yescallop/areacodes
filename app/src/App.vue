@@ -1,20 +1,49 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, provide, ref } from 'vue';
+import { type GlobalProps, type Item, type Link, time_or_default } from './common';
 import TreeItem from './TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
-const codes = ref<any[]>([{
+const codes = ref<Item[]>([{
   code: 233333,
   name: "加载中...",
   start: new Date().getFullYear(),
 }]);
 codes.value[0].children = codes.value;
 
+const predecessors = computed(() => {
+  let map = new Map<number, Link[]>();
+  guide.children?.forEach(item => insert(map, item));
+  codes.value.forEach(item => insert(map, item));
+  return map;
+});
+const reversed = ref(false);
+
+function insert(map: Map<number, Link[]>, item: Item) {
+  item.successors?.forEach(link => {
+    let links = map.get(link.code);
+    if (links == undefined) {
+      links = [];
+      map.set(link.code, links);
+    }
+    links.push({ time: time_or_default(link, item), code: item.code });
+  });
+  item.children?.forEach(child => insert(map, child));
+}
+
+provide<GlobalProps>('props', { predecessors, reversed });
+
+document.onkeydown = e => {
+  if (e.key == "R" || e.key == "r") {
+    reversed.value = !reversed.value;
+  }
+};
+
 fetch(codesUrl)
   .then(resp => resp.json())
   .then(json => codes.value = json);
 
-const guide = {
+const guide: Item = {
   code: 0,
   name: "凡例",
   start: 1980,
@@ -37,16 +66,10 @@ const guide = {
     },
     {
       code: 4,
-      name: "绿色行表示上方代码的叶区域在指定年份被部分或全部划为指定代码的叶区域",
+      name: "绿色行表示原代码的叶区域在指定年份被部分或全部划为指定代码的叶区域",
       start: 1980,
-      sus: [{ code: 1, time: 2000 }]
+      successors: [{ code: 3, time: 2000 }]
     },
-    {
-      code: 5,
-      name: "棕色行可以说是绿色行的弱化，具体是什么意思等我再想想（",
-      start: 1980,
-      sus: [{ code: 2, time: 2010, opt: true }]
-    }
   ]
 };
 </script>
@@ -63,6 +86,11 @@ const guide = {
     <ul class="top">
       <TreeItem :item="guide"></TreeItem>
     </ul>
+    <div id="options">
+      <span>选项：</span>
+      <input type="checkbox" id="reverse" v-model="reversed" />
+      <label for="reverse">反向追溯（R）</label>
+    </div>
   </header>
   <main>
     <ul class="top">
@@ -93,5 +121,9 @@ ul {
 
 .top {
   padding-left: 0;
+}
+
+label {
+  padding-right: 1ch;
 }
 </style>

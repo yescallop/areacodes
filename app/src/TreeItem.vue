@@ -1,63 +1,52 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-
-interface Successor {
-  opt?: boolean,
-  time?: number,
-  code: number,
-}
-
-interface Item {
-  code: number,
-  name: string,
-  start: number,
-  end?: number,
-  sus?: Successor[],
-  children?: Item[],
-}
-
-interface Su {
-  codes: string,
-  time: number,
-}
+import { computed, inject, ref } from 'vue';
+import { type GlobalProps, type Item, type Link, time_or_default } from './common';
 
 const props = defineProps<{ item: Item; }>();
+const gProps = inject<GlobalProps>('props')!;
+
 const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(false);
-const sus = computed(() => {
-  let sus = props.item.sus != undefined ? props.item.sus : [];
-  let sus_opt: Successor[] = [];
-  let i = sus.findIndex(su => su.opt);
-  if (i >= 0) {
-    sus_opt = sus.slice(i);
-    sus = sus.slice(0, i);
+const links = computed(() => {
+  let item = props.item;
+  let links: Link[];
+  if (!gProps.reversed.value) {
+    links = item.successors != undefined ? item.successors : [];
+  } else {
+    let predecessors = gProps.predecessors.value.get(item.code);
+    if (predecessors != undefined) {
+      links = predecessors.filter(link =>
+        link.time! >= item.start && (item.end == undefined || link.time! < item.end));
+      links.sort((a, b) => a.time! - b.time!);
+    } else {
+      links = [];
+    }
   }
-  return { non_opt: zip_sus(sus), opt: zip_sus(sus_opt) };
+  return zip_links(links);
 });
 
-function zip_sus(sus: Successor[]): Su[] {
-  if (sus.length == 0) {
+function zip_links(links: Link[]): {
+  codes: string,
+  time: number,
+}[] {
+  if (links.length == 0) {
     return [];
   }
   let out = [];
-  let codes = String(sus[0].code);
-  let lastTime = time_or_default(sus[0]);
-  sus.slice(1).forEach(su => {
-    let time = time_or_default(su);
+  let codes = String(links[0].code);
+  let lastTime = time_or_default(links[0], props.item);
+  links.slice(1).forEach(link => {
+    let time = time_or_default(link, props.item);
     if (time == lastTime) {
-      codes += "," + su.code;
+      codes += "," + link.code;
     } else {
       out.push({ codes, time: lastTime });
-      codes = String(su.code);
+      codes = String(link.code);
       lastTime = time;
     }
   });
   out.push({ codes, time: lastTime });
   return out;
-}
-
-function time_or_default(su: Successor): number {
-  return su.time ? su.time : props.item.end!;
 }
 
 function toggle() {
@@ -74,11 +63,8 @@ function toggle() {
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>
-    <ul v-if="sus.non_opt.length" class="sus_non_opt">
-      <li v-for="su in sus.non_opt">=> {{ su.codes }} &lt;{{ su.time }}&gt;</li>
-    </ul>
-    <ul v-if="sus.opt.length" class="sus_opt">
-      <li v-for="su in sus.opt">~> {{ su.codes }} &lt;{{ su.time }}&gt;</li>
+    <ul v-if="links.length" class="links">
+      <li v-for="link in links">{{ gProps.reversed.value ? "<=" : "=>" }} {{ link.codes }} &lt;{{ link.time }}&gt;</li>
     </ul>
     <ul v-if="isOpen">
       <TreeItem v-for="child in item.children" :item="child"></TreeItem>
@@ -100,13 +86,8 @@ function toggle() {
   margin-right: 1ch;
 }
 
-.sus_non_opt {
+.links {
   color: green;
-  padding-left: 5ch;
-}
-
-.sus_opt {
-  color: brown;
   padding-left: 5ch;
 }
 </style>

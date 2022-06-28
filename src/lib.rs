@@ -17,7 +17,7 @@ pub struct JsonEntry<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end: Option<u32>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub sus: Vec<Successor>,
+    pub successors: Vec<Successor>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<JsonEntry<'a>>,
 }
