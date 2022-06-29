@@ -1,8 +1,11 @@
-import type { ComputedRef, Ref } from 'vue';
+import type { ComputedRef } from 'vue';
 
 export interface GlobalProps {
     predecessors: ComputedRef<Map<number, Link[]>>,
-    reversed: Ref<boolean>,
+    options: {
+        hide_succ: boolean,
+        hide_pred: boolean,
+    },
 }
 
 export interface Item {
