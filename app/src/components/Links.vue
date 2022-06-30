@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import type { LinkZipped } from '@/common';
+import Link from './Link.vue';
 
-const props = defineProps<{ links: LinkZipped[]; }>();
+defineProps<{ links: LinkZipped[]; }>();
 </script>
 
 <template>
-  <ul v-if="props.links.length" class="links">
-    <li v-for="link in props.links" :class="{ rev: link.rev }">
-      <template v-for="code in link.codes">
-        <a :href="`#${code}:${link.time - (link.rev ? 1 : 0)}`">{{ code }}</a>
-        <span>,</span>
+  <ul v-if="links.length" class="links">
+    <li v-for="link in links" :class="{ rev: link.rev }">
+      <template v-for="(code, index) in link.codes">
+        <template v-if="index != 0">,</template>
+        <Link :code="code" :time="link.time" :rev="link.rev" />
       </template>
       &lt;{{ link.time }}&gt;
     </li>
@@ -33,9 +34,5 @@ const props = defineProps<{ links: LinkZipped[]; }>();
 
 .links li.rev::before {
   content: "<=";
-}
-
-.links span:last-child {
-  display: none;
 }
 </style>

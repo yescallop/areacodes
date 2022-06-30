@@ -5,6 +5,8 @@ export interface GlobalProps {
     },
     items: Map<number, Item[]>,
     predecessors: Map<number, Link[]>,
+    locate: (code: number, time: number) => Item | undefined,
+    scrollTo: (item: Item) => void,
 }
 
 export interface Item {
@@ -16,7 +18,7 @@ export interface Item {
     children?: Item[],
 
     parent?: Item,
-    // flags: open = 1, scroll = 2
+    // flags: parent = 0, terminal = 1
     selected?: number,
     onSelected?: () => void,
 }

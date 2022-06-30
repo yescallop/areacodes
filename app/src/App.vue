@@ -33,13 +33,13 @@ const guide: Item = {
       children: [
         {
           code: 4,
-          name: "向右的直箭头 (=>) 表明代码的后继",
+          name: "向右的直箭头表明代码的后继",
           start: 1980,
           successors: [{ code: 5, time: 1990 }]
         },
         {
           code: 5,
-          name: "向左的直箭头 (<=) 表明代码的前身",
+          name: "向左的直箭头表明代码的前身",
           start: 1990,
         },
       ]
@@ -55,7 +55,7 @@ const options = reactive({
 const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
 
-const props: GlobalProps = { options, items, predecessors };
+const props: GlobalProps = { options, items, predecessors, locate, scrollTo };
 provide('props', props);
 
 guide.children?.forEach(item => insertItem(item));
@@ -91,13 +91,25 @@ function insertItem(item: Item, parent?: Item) {
 window.onhashchange = scrollToHash;
 
 function scrollToHash() {
+  let item = locateHash();
+  if (item != undefined) scrollTo(item);
+}
+
+function scrollTo(item: Item) {
+  item.selected = 1;
+  while (item.onSelected == undefined) {
+    if (item.parent == undefined) return;
+    item = item.parent;
+    item!.selected = 0;
+  }
+  item!.onSelected();
+}
+
+function locateHash(): Item | undefined {
   if (!location.hash.length) {
     return;
   }
   let id = location.hash.substring(1);
-  let elem = document.getElementById(id);
-  if (elem != null) return;
-
   let parts = id.split(':');
   if (parts.length == 2) {
     let code = parseInt(parts[0]);
@@ -107,13 +119,7 @@ function scrollToHash() {
       window.alert("该代码不存在！");
       return;
     }
-    item.selected = 2;
-    while (item!.onSelected == undefined) {
-      item = item!.parent;
-      if (item == undefined) return;
-      item!.selected = 1;
-    }
-    item!.onSelected();
+    return item;
   }
 }
 
@@ -138,13 +144,13 @@ function locate(code: number, time: number): Item | undefined {
       <label><input type="checkbox" v-model="options.hideSucc" />隐藏后继</label>
       <label><input type="checkbox" v-model="options.hidePred" />隐藏前身</label>
     </fieldset>
-    <ul class="top">
-      <TreeItem :item="guide" :open="true"></TreeItem>
+    <ul id="guide" class="top">
+      <TreeItem :item="guide" :open="true" />
     </ul>
   </header>
   <main>
     <ul class="top">
-      <TreeItem v-for="child in codes" :item="child" :open="false"></TreeItem>
+      <TreeItem v-for="child in codes" :item="child" :open="false" />
     </ul>
   </main>
 </template>
@@ -179,6 +185,10 @@ ul {
 
 .top {
   padding-left: 0;
+}
+
+#guide rt {
+  display: none;
 }
 
 #options {

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, onUpdated, ref } from 'vue';
-import { type GlobalProps, type Item, type LinkZipped, timeOrDefault } from '@/common';
+import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref } from 'vue';
+import type { GlobalProps, Item, LinkZipped } from '@/common';
+import { timeOrDefault } from '@/common';
 import Links from './Links.vue';
 
 const props = defineProps<{ item: Item; open: boolean; }>();
 const gProps = inject<GlobalProps>('props')!;
+
+provide('srcName', props.item.name);
 
 interface LinkWithDirection {
   code: number,
@@ -17,7 +20,7 @@ const isOpen = ref(props.open);
 const links = computed(() => {
   return zipLinks(getLinks());
 });
-const li = ref<HTMLElement | null>(null);
+const head = ref<HTMLElement>();
 
 props.item.onSelected = onSelected;
 onMounted(onSelected);
@@ -27,12 +30,17 @@ onUnmounted(() => props.item.onSelected = undefined);
 function onSelected() {
   let sel = props.item.selected;
   if (sel != undefined) {
-    if (sel & 1) isOpen.value = true;
-    if (sel & 2) document.fonts.ready.then(() => {
-      li.value!.scrollIntoView();
-    });
+    if (isFolder.value) isOpen.value = true;
+    if (sel != 0) scroll(false);
     props.item.selected = undefined;
   }
+}
+
+function scroll(open: boolean) {
+  if (open) isOpen.value = true;
+  document.fonts.ready.then(() => {
+    head.value!.scrollIntoView({ behavior: "smooth" });
+  });
 }
 
 function getLinks(): LinkWithDirection[] {
@@ -85,19 +93,27 @@ function zipLinks(links: LinkWithDirection[]): LinkZipped[] {
   out.push({ codes, time: last.time, rev: last.rev });
   return out;
 }
+
+function toggle() {
+  if (!isOpen.value) {
+    scroll(true);
+  } else {
+    isOpen.value = false;
+  }
+}
 </script>
 
 <template>
-  <li :id="`${props.item.code}:${props.item.start}`" ref="li">
-    <div :class="{ obsolete: item.end, leaf: !isFolder }">
-      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
-      <a :href="`#${item.code}:${item.start}`">{{ item.code }}</a>
+  <li>
+    <div ref="head" :class="{ obsolete: item.end, leaf: !isFolder }">
+      <span v-if="isFolder" class="toggle" @click="toggle">[{{ isOpen ? '-' : '+' }}]</span>
+      <a :href="`#${item.code}:${item.start}`" @click="scroll(true)">{{ item.code }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>
-    <Links :links="links"></Links>
+    <Links :links="links" />
     <ul v-if="isOpen">
-      <TreeItem v-for="child in item.children" :item="child" :open="props.open"></TreeItem>
+      <TreeItem v-for="child in item.children" :item="child" :open="open" />
     </ul>
   </li>
 </template>
