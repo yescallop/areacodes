@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { provide, reactive, ref } from 'vue';
-import { type GlobalProps, type Item, type Link, time_or_default } from './common';
+import { type GlobalProps, type Item, type Link, timeOrDefault } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
@@ -48,8 +48,8 @@ const guide: Item = {
 };
 
 const options = reactive({
-  hide_succ: false,
-  hide_pred: false,
+  hideSucc: false,
+  hidePred: false,
 });
 
 const items = new Map<number, Item[]>();
@@ -58,17 +58,17 @@ const predecessors = new Map<number, Link[]>();
 const props: GlobalProps = { options, items, predecessors };
 provide('props', props);
 
-guide.children?.forEach(item => insert_item(item));
+guide.children?.forEach(item => insertItem(item));
 
 fetch(codesUrl)
   .then(resp => resp.json())
   .then((arr: Item[]) => {
-    arr.forEach(item => insert_item(item));
+    arr.forEach(item => insertItem(item));
     scrollToHash();
     codes.value = arr;
   });
 
-function insert_item(item: Item, parent?: Item) {
+function insertItem(item: Item, parent?: Item) {
   let arr = items.get(item.code);
   if (arr == undefined) {
     arr = [];
@@ -82,9 +82,9 @@ function insert_item(item: Item, parent?: Item) {
       links = [];
       predecessors.set(link.code, links);
     }
-    links.push({ time: time_or_default(link, item), code: item.code });
+    links.push({ time: timeOrDefault(link, item), code: item.code });
   });
-  item.children?.forEach(child => insert_item(child, item));
+  item.children?.forEach(child => insertItem(child, item));
   item.parent = parent;
 }
 
@@ -135,8 +135,8 @@ function locate(code: number, time: number): Item | undefined {
     </a>
     <fieldset id="options">
       <legend>选项</legend>
-      <label><input type="checkbox" id="hide_succ" v-model="options.hide_succ" />隐藏后继</label>
-      <label><input type="checkbox" id="hide_pred" v-model="options.hide_pred" />隐藏前身</label>
+      <label><input type="checkbox" v-model="options.hideSucc" />隐藏后继</label>
+      <label><input type="checkbox" v-model="options.hidePred" />隐藏前身</label>
     </fieldset>
     <ul class="top">
       <TreeItem :item="guide" :open="true"></TreeItem>

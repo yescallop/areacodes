@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, ref } from 'vue';
-import { type GlobalProps, type Item, type LinkZipped, time_or_default } from '@/common';
+import { type GlobalProps, type Item, type LinkZipped, timeOrDefault } from '@/common';
 import Links from './Links.vue';
 
 const props = defineProps<{ item: Item; open: boolean; }>();
@@ -15,7 +15,7 @@ interface LinkWithDirection {
 const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(props.open);
 const links = computed(() => {
-  return zip_links(get_links());
+  return zipLinks(getLinks());
 });
 const li = ref<HTMLElement | null>(null);
 
@@ -35,11 +35,11 @@ function onSelected() {
   }
 }
 
-function get_links(): LinkWithDirection[] {
+function getLinks(): LinkWithDirection[] {
   let item = props.item;
   let predecessors = gProps.predecessors.get(item.code);
   let links: LinkWithDirection[];
-  if (!gProps.options.hide_pred && predecessors != undefined) {
+  if (!gProps.options.hidePred && predecessors != undefined) {
     links = predecessors.filter(link => {
       return link.time! >= item.start && (item.end == undefined || link.time! < item.end);
     }).map(link => {
@@ -49,11 +49,11 @@ function get_links(): LinkWithDirection[] {
     links = [];
   }
 
-  if (!gProps.options.hide_succ) {
+  if (!gProps.options.hideSucc) {
     item.successors?.forEach(link => {
       links.push({
         code: link.code,
-        time: time_or_default(link, item),
+        time: timeOrDefault(link, item),
         rev: false,
       });
     });
@@ -66,7 +66,7 @@ function get_links(): LinkWithDirection[] {
   return links;
 }
 
-function zip_links(links: LinkWithDirection[]): LinkZipped[] {
+function zipLinks(links: LinkWithDirection[]): LinkZipped[] {
   if (links.length == 0) {
     return [];
   }

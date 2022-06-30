@@ -1,7 +1,7 @@
 export interface GlobalProps {
     options: {
-        hide_succ: boolean,
-        hide_pred: boolean,
+        hideSucc: boolean,
+        hidePred: boolean,
     },
     items: Map<number, Item[]>,
     predecessors: Map<number, Link[]>,
@@ -32,6 +32,6 @@ export interface LinkZipped {
     rev: boolean,
 }
 
-export function time_or_default(link: Link, item: Item): number {
+export function timeOrDefault(link: Link, item: Item): number {
     return link.time != undefined ? link.time : item.end!;
 }
