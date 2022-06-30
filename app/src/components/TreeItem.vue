@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
-import { type GlobalProps, type Item, time_or_default } from './common';
+import { computed, inject, onMounted, onUnmounted, onUpdated, ref } from 'vue';
+import { type GlobalProps, type Item, type LinkZipped, time_or_default } from '@/common';
+import Links from './Links.vue';
 
 const props = defineProps<{ item: Item; open: boolean; }>();
 const gProps = inject<GlobalProps>('props')!;
@@ -11,21 +12,32 @@ interface LinkWithDirection {
   rev: boolean,
 }
 
-interface LinkZipped {
-  codes: string,
-  time: number,
-  rev: boolean,
-}
-
 const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(props.open);
 const links = computed(() => {
   return zip_links(get_links());
 });
+const li = ref<HTMLElement | null>(null);
+
+props.item.onSelected = onSelected;
+onMounted(onSelected);
+onUpdated(onSelected);
+onUnmounted(() => props.item.onSelected = undefined);
+
+function onSelected() {
+  let sel = props.item.selected;
+  if (sel != undefined) {
+    if (sel & 1) isOpen.value = true;
+    if (sel & 2) document.fonts.ready.then(() => {
+      li.value!.scrollIntoView();
+    });
+    props.item.selected = undefined;
+  }
+}
 
 function get_links(): LinkWithDirection[] {
   let item = props.item;
-  let predecessors = gProps.predecessors.value.get(item.code);
+  let predecessors = gProps.predecessors.get(item.code);
   let links: LinkWithDirection[];
   if (!gProps.options.hide_pred && predecessors != undefined) {
     links = predecessors.filter(link => {
@@ -49,7 +61,7 @@ function get_links(): LinkWithDirection[] {
 
   links.sort((a, b) => {
     let diff = a.time - b.time;
-    return diff != 0 ? diff : ((a.rev ? 1 : 0) - (b.rev ? 1 : 0));
+    return diff != 0 ? diff : ((b.rev ? 1 : 0) - (a.rev ? 1 : 0));
   });
   return links;
 }
@@ -59,14 +71,14 @@ function zip_links(links: LinkWithDirection[]): LinkZipped[] {
     return [];
   }
   let out = [];
-  let codes = String(links[0].code);
+  let codes = [links[0].code];
   let last = links[0];
   links.slice(1).forEach(link => {
     if (link.time == last.time && link.rev == last.rev) {
-      codes += "," + link.code;
+      codes.push(link.code);
     } else {
       out.push({ codes, time: last.time, rev: last.rev });
-      codes = String(link.code);
+      codes = [link.code];
       last = link;
     }
   });
@@ -76,17 +88,14 @@ function zip_links(links: LinkWithDirection[]): LinkZipped[] {
 </script>
 
 <template>
-  <li>
+  <li :id="`${props.item.code}:${props.item.start}`" ref="li">
     <div :class="{ obsolete: item.end, leaf: !isFolder }">
-      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>{{
-          item.code
-      }}
+      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
+      <a :href="`#${item.code}:${item.start}`">{{ item.code }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>
-    <ul v-if="links.length" class="links">
-      <li v-for="link in links" :class="{ rev: link.rev }">{{ link.codes }} &lt;{{ link.time }}&gt;</li>
-    </ul>
+    <Links :links="links"></Links>
     <ul v-if="isOpen">
       <TreeItem v-for="child in item.children" :item="child" :open="props.open"></TreeItem>
     </ul>
@@ -105,23 +114,5 @@ function zip_links(links: LinkWithDirection[]): LinkZipped[] {
 .toggle {
   user-select: none;
   margin-right: 1ch;
-}
-
-.links {
-  color: green;
-  padding-left: 5ch;
-}
-
-.links li.rev {
-  color: darkred;
-}
-
-.links li::before {
-  content: "=>";
-  padding-right: 1ch;
-}
-
-.links li.rev::before {
-  content: "<=";
 }
 </style>

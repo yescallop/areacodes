@@ -1,44 +1,14 @@
 <script setup lang="ts">
-import { computed, provide, reactive, ref } from 'vue';
+import { provide, reactive, ref } from 'vue';
 import { type GlobalProps, type Item, type Link, time_or_default } from './common';
-import TreeItem from './TreeItem.vue';
+import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
 const codes = ref<Item[]>([{
-  code: 233333,
+  code: 233,
   name: "加载中...",
   start: new Date().getFullYear(),
 }]);
-
-const predecessors = computed(() => {
-  let map = new Map<number, Link[]>();
-  guide.children?.forEach(item => insert(map, item));
-  codes.value.forEach(item => insert(map, item));
-  return map;
-});
-
-const options = reactive({
-  hide_succ: false,
-  hide_pred: false,
-});
-
-function insert(map: Map<number, Link[]>, item: Item) {
-  item.successors?.forEach(link => {
-    let links = map.get(link.code);
-    if (links == undefined) {
-      links = [];
-      map.set(link.code, links);
-    }
-    links.push({ time: time_or_default(link, item), code: item.code });
-  });
-  item.children?.forEach(child => insert(map, child));
-}
-
-provide<GlobalProps>('props', { predecessors, options });
-
-fetch(codesUrl)
-  .then(resp => resp.json())
-  .then(json => codes.value = json);
 
 const guide: Item = {
   code: 0,
@@ -76,16 +46,93 @@ const guide: Item = {
     },
   ]
 };
+
+const options = reactive({
+  hide_succ: false,
+  hide_pred: false,
+});
+
+const items = new Map<number, Item[]>();
+const predecessors = new Map<number, Link[]>();
+
+const props: GlobalProps = { options, items, predecessors };
+provide('props', props);
+
+guide.children?.forEach(item => insert_item(item));
+
+fetch(codesUrl)
+  .then(resp => resp.json())
+  .then((arr: Item[]) => {
+    arr.forEach(item => insert_item(item));
+    scrollToHash();
+    codes.value = arr;
+  });
+
+function insert_item(item: Item, parent?: Item) {
+  let arr = items.get(item.code);
+  if (arr == undefined) {
+    arr = [];
+    items.set(item.code, arr);
+  }
+  arr.push(item);
+
+  item.successors?.forEach(link => {
+    let links = predecessors.get(link.code);
+    if (links == undefined) {
+      links = [];
+      predecessors.set(link.code, links);
+    }
+    links.push({ time: time_or_default(link, item), code: item.code });
+  });
+  item.children?.forEach(child => insert_item(child, item));
+  item.parent = parent;
+}
+
+window.onhashchange = scrollToHash;
+
+function scrollToHash() {
+  if (!location.hash.length) {
+    return;
+  }
+  let id = location.hash.substring(1);
+  let elem = document.getElementById(id);
+  if (elem != null) return;
+
+  let parts = id.split(':');
+  if (parts.length == 2) {
+    let code = parseInt(parts[0]);
+    let time = parseInt(parts[1]);
+    let item = locate(code, time);
+    if (item == undefined) {
+      window.alert("该代码不存在！");
+      return;
+    }
+    item.selected = 2;
+    while (item!.onSelected == undefined) {
+      item = item!.parent;
+      if (item == undefined) return;
+      item!.selected = 1;
+    }
+    item!.onSelected();
+  }
+}
+
+function locate(code: number, time: number): Item | undefined {
+  return props.items.get(code)?.find(item => {
+    return time >= item.start && (item.end == undefined || time < item.end);
+  });
+}
 </script>
 
 <template>
   <header>
-    <h1>行政区划代码数据集<a href="https://github.com/yescallop/areacodes">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16">
-          <path fill-rule="evenodd"
-            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-        </svg>
-      </a></h1>
+    <h1><a href="">行政区划代码数据集</a></h1>
+    <a href="https://github.com/yescallop/areacodes">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16">
+        <path fill-rule="evenodd"
+          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+      </svg>
+    </a>
     <fieldset id="options">
       <legend>选项</legend>
       <label><input type="checkbox" id="hide_succ" v-model="options.hide_succ" />隐藏后继</label>
@@ -110,12 +157,19 @@ body {
 }
 
 h1 {
+  display: inline-block;
   margin-left: 1ch;
+  margin-right: .5ch;
   font-size: x-large;
 }
 
-h1 a {
-  margin-left: .5ch;
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 ul {
