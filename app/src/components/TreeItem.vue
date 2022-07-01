@@ -32,25 +32,21 @@ function onSelected() {
   if (sel != undefined) {
     if (isFolder.value) isOpen.value = true;
     if (sel != 0) {
-      scroll(false);
+      history.pushState(null, "", `#${props.item.code}:${props.item.start}`);
       headLink.value!.focus({ preventScroll: true });
+      document.fonts.ready.then(() => {
+        headLink.value!.scrollIntoView({ behavior: "smooth" });
+      });
     }
     props.item.selected = undefined;
   }
-}
-
-function scroll(open: boolean) {
-  if (open) isOpen.value = true;
-  document.fonts.ready.then(() => {
-    headLink.value!.scrollIntoView({ behavior: "smooth", inline: "start" });
-  });
 }
 
 function getLinks(): LinkWithDirection[] {
   let item = props.item;
   let predecessors = gProps.predecessors.get(item.code);
   let links: LinkWithDirection[];
-  if (!gProps.options.hidePred && predecessors != undefined) {
+  if (!gProps.options.hidePredecessors && predecessors != undefined) {
     links = predecessors.filter(link => {
       return link.time! >= item.start && (item.end == undefined || link.time! < item.end);
     }).map(link => {
@@ -60,7 +56,7 @@ function getLinks(): LinkWithDirection[] {
     links = [];
   }
 
-  if (!gProps.options.hideSucc) {
+  if (!gProps.options.hideSuccessors) {
     item.successors?.forEach(link => {
       links.push({
         code: link.code,
@@ -97,20 +93,17 @@ function zipLinks(links: LinkWithDirection[]): LinkZipped[] {
   return out;
 }
 
-function toggle() {
-  if (!isOpen.value) {
-    scroll(true);
-  } else {
-    isOpen.value = false;
-  }
+function scroll() {
+  props.item.selected = 1;
+  onSelected();
 }
 </script>
 
 <template>
   <li>
     <div :class="{ obsolete: item.end, leaf: !isFolder }">
-      <span v-if="isFolder" class="toggle" @click="toggle">[{{ isOpen ? '-' : '+' }}]</span>
-      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click="toggle">{{ item.code }}</a>
+      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
+      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scroll">{{ item.code }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>

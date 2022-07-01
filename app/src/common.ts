@@ -1,12 +1,10 @@
 export interface GlobalProps {
     options: {
-        hideSucc: boolean,
-        hidePred: boolean,
+        hideSuccessors: boolean,
+        hidePredecessors: boolean,
     },
     items: Map<number, Item[]>,
     predecessors: Map<number, Link[]>,
-    locate: (code: number, time: number) => Item | undefined,
-    scrollTo: (item: Item) => void,
 }
 
 export interface Item {
@@ -36,4 +34,14 @@ export interface LinkZipped {
 
 export function timeOrDefault(link: Link, item: Item): number {
     return link.time != undefined ? link.time : item.end!;
+}
+
+export function scrollToItem(item: Item) {
+    item.selected = 1;
+    while (item.onSelected == undefined) {
+        if (item.parent == undefined) return;
+        item = item.parent;
+        item.selected = 0;
+    }
+    item.onSelected();
 }

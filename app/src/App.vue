@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { provide, reactive, ref } from 'vue';
-import { type GlobalProps, type Item, type Link, timeOrDefault } from './common';
+import type { GlobalProps, Item, Link } from './common';
+import { timeOrDefault, scrollToItem } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
 const codes = ref<Item[]>([{
-  code: 233,
+  code: 233333,
   name: "加载中...",
   start: new Date().getFullYear(),
 }]);
@@ -48,14 +49,14 @@ const guide: Item = {
 };
 
 const options = reactive({
-  hideSucc: false,
-  hidePred: false,
+  hideSuccessors: false,
+  hidePredecessors: false,
 });
 
 const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
 
-const props: GlobalProps = { options, items, predecessors, locate, scrollTo };
+const props: GlobalProps = { options, items, predecessors };
 provide('props', props);
 
 insertItem(guide);
@@ -92,17 +93,7 @@ window.onhashchange = scrollToHash;
 
 function scrollToHash() {
   let item = locateHash();
-  if (item != undefined) scrollTo(item);
-}
-
-function scrollTo(item: Item) {
-  item.selected = 1;
-  while (item.onSelected == undefined) {
-    if (item.parent == undefined) return;
-    item = item.parent;
-    item!.selected = 0;
-  }
-  item!.onSelected();
+  if (item != undefined) scrollToItem(item);
 }
 
 function locateHash(): Item | undefined {
@@ -114,19 +105,13 @@ function locateHash(): Item | undefined {
   if (parts.length == 2) {
     let code = parseInt(parts[0]);
     let time = parseInt(parts[1]);
-    let item = locate(code, time);
+    let item = props.items.get(code)?.find(item => time == item.start);
     if (item == undefined) {
       window.alert("该代码不存在！");
       return;
     }
     return item;
   }
-}
-
-function locate(code: number, time: number): Item | undefined {
-  return props.items.get(code)?.find(item => {
-    return time >= item.start && (item.end == undefined || time < item.end);
-  });
 }
 </script>
 
@@ -141,8 +126,8 @@ function locate(code: number, time: number): Item | undefined {
     </a>
     <fieldset id="options">
       <legend>选项</legend>
-      <label><input type="checkbox" v-model="options.hideSucc" />隐藏后继</label>
-      <label><input type="checkbox" v-model="options.hidePred" />隐藏前身</label>
+      <label><input type="checkbox" v-model="options.hideSuccessors" />隐藏后继</label>
+      <label><input type="checkbox" v-model="options.hidePredecessors" />隐藏前身</label>
     </fieldset>
     <ul id="guide" class="top">
       <TreeItem :item="guide" :open="true" />
