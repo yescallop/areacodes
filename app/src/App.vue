@@ -45,6 +45,11 @@ const guide: Item = {
         },
       ]
     },
+    {
+      code: 6,
+      name: "支持键盘操作（Tab、回车、退格）",
+      start: 1980,
+    },
   ]
 };
 

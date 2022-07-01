@@ -1,45 +1,58 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref } from 'vue';
 import type { GlobalProps, Item, LinkZipped } from '@/common';
-import { timeOrDefault } from '@/common';
+import { timeOrDefault, Action } from '@/common';
 import Links from './Links.vue';
 
 const props = defineProps<{ item: Item; open: boolean; }>();
 const gProps = inject<GlobalProps>('props')!;
 
-provide('srcName', props.item.name);
+provide('srcItem', props.item);
+
+const isFolder = computed(() => props.item.children != undefined);
+const isOpen = ref(props.open);
+const links = computed(() => zipLinks(getLinks()));
+const headLink = ref<HTMLElement>();
+
+onMounted(() => {
+  props.item.act = act;
+  act();
+});
+onUpdated(() => {
+  props.item.act = act;
+  act();
+});
+onUnmounted(() => props.item.act = undefined);
+
+function act() {
+  let action = props.item.action;
+  if (action != undefined) {
+    if (action == Action.Open) {
+      isOpen.value = true;
+    } else {
+      let hash = `#${props.item.code}:${props.item.start}`;
+      if (hash != location.hash) {
+        history.pushState(null, "", hash);
+      }
+
+      let open = action == Action.OpenFocusScroll;
+      if (isFolder.value && action != Action.Focus) {
+        isOpen.value = open;
+      }
+
+      headLink.value!.focus({ preventScroll: open });
+      if (open) document.fonts.ready.then(() => {
+        headLink.value!.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+    props.item.action = undefined;
+  }
+}
 
 interface LinkWithDirection {
   code: number,
   time: number,
   rev: boolean,
-}
-
-const isFolder = computed(() => props.item.children != undefined);
-const isOpen = ref(props.open);
-const links = computed(() => {
-  return zipLinks(getLinks());
-});
-const headLink = ref<HTMLElement>();
-
-props.item.onSelected = onSelected;
-onMounted(onSelected);
-onUpdated(onSelected);
-onUnmounted(() => props.item.onSelected = undefined);
-
-function onSelected() {
-  let sel = props.item.selected;
-  if (sel != undefined) {
-    if (isFolder.value) isOpen.value = true;
-    if (sel != 0) {
-      history.pushState(null, "", `#${props.item.code}:${props.item.start}`);
-      headLink.value!.focus({ preventScroll: true });
-      document.fonts.ready.then(() => {
-        headLink.value!.scrollIntoView({ behavior: "smooth" });
-      });
-    }
-    props.item.selected = undefined;
-  }
 }
 
 function getLinks(): LinkWithDirection[] {
@@ -93,9 +106,23 @@ function zipLinks(links: LinkWithDirection[]): LinkZipped[] {
   return out;
 }
 
-function scroll() {
-  props.item.selected = 1;
-  onSelected();
+function scrollOpen() {
+  props.item.action = Action.OpenFocusScroll;
+  act();
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.code == "Backspace") {
+    if (isOpen.value) {
+      isOpen.value = false;
+    } else {
+      let parent = props.item.parent;
+      if (parent != undefined) {
+        parent.action = Action.Focus;
+        parent.act!();
+      }
+    }
+  }
 }
 </script>
 
@@ -103,7 +130,9 @@ function scroll() {
   <li>
     <div :class="{ obsolete: item.end, leaf: !isFolder }">
       <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
-      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scroll">{{ item.code }}</a>
+      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scrollOpen" @keydown="onKeyDown">{{
+          item.code
+      }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>

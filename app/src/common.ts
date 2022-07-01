@@ -16,9 +16,19 @@ export interface Item {
     children?: Item[],
 
     parent?: Item,
-    // flags: parent = 0, terminal = 1
-    selected?: number,
-    onSelected?: () => void,
+    action?: Action,
+    act?: () => void,
+}
+
+export enum Action {
+    // Open only.
+    Open,
+    // Focus only.
+    Focus,
+    // Open if the item is a folder, focus and scroll.
+    OpenFocusScroll,
+    // Close and focus.
+    CloseFocus,
 }
 
 export interface Link {
@@ -37,11 +47,11 @@ export function timeOrDefault(link: Link, item: Item): number {
 }
 
 export function scrollToItem(item: Item) {
-    item.selected = 1;
-    while (item.onSelected == undefined) {
+    item.action = Action.OpenFocusScroll;
+    while (item.act == undefined) {
         if (item.parent == undefined) return;
         item = item.parent;
-        item.selected = 0;
+        item.action = Action.Open;
     }
-    item.onSelected();
+    item.act();
 }
