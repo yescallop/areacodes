@@ -20,7 +20,7 @@ const isOpen = ref(props.open);
 const links = computed(() => {
   return zipLinks(getLinks());
 });
-const head = ref<HTMLElement>();
+const headLink = ref<HTMLElement>();
 
 props.item.onSelected = onSelected;
 onMounted(onSelected);
@@ -31,7 +31,10 @@ function onSelected() {
   let sel = props.item.selected;
   if (sel != undefined) {
     if (isFolder.value) isOpen.value = true;
-    if (sel != 0) scroll(false);
+    if (sel != 0) {
+      scroll(false);
+      headLink.value!.focus({ preventScroll: true });
+    }
     props.item.selected = undefined;
   }
 }
@@ -39,7 +42,7 @@ function onSelected() {
 function scroll(open: boolean) {
   if (open) isOpen.value = true;
   document.fonts.ready.then(() => {
-    head.value!.scrollIntoView({ behavior: "smooth" });
+    headLink.value!.scrollIntoView({ behavior: "smooth", inline: "start" });
   });
 }
 
@@ -105,9 +108,9 @@ function toggle() {
 
 <template>
   <li>
-    <div ref="head" :class="{ obsolete: item.end, leaf: !isFolder }">
+    <div :class="{ obsolete: item.end, leaf: !isFolder }">
       <span v-if="isFolder" class="toggle" @click="toggle">[{{ isOpen ? '-' : '+' }}]</span>
-      <a :href="`#${item.code}:${item.start}`" @click="scroll(true)">{{ item.code }}</a>
+      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click="toggle">{{ item.code }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
       {{ item.name }}
     </div>
@@ -129,6 +132,6 @@ function toggle() {
 
 .toggle {
   user-select: none;
-  margin-right: 1ch;
+  padding-right: 1ch;
 }
 </style>
