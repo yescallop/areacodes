@@ -156,8 +156,6 @@ function locate(code: number, time: number): Item | undefined {
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC&family=Roboto+Mono&display=swap');
-
 body {
   font-family: 'Roboto Mono', 'Noto Sans SC';
 }
