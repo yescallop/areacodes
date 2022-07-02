@@ -4,13 +4,13 @@ import type { GlobalProps, Item, LinkZipped } from '@/common';
 import { timeOrDefault, Action } from '@/common';
 import Links from './Links.vue';
 
-const props = defineProps<{ item: Item; open: boolean; }>();
+const props = defineProps<{ item: Item; }>();
 const gProps = inject<GlobalProps>('props')!;
 
 provide('srcItem', props.item);
 
 const isFolder = computed(() => props.item.children != undefined);
-const isOpen = ref(props.open);
+const isOpen = ref(false);
 const links = computed(() => zipLinks(getLinks()));
 const headLink = ref<HTMLElement>();
 
@@ -138,7 +138,7 @@ function onKeyDown(e: KeyboardEvent) {
     </div>
     <Links :links="links" />
     <ul v-if="isOpen">
-      <TreeItem v-for="child in item.children" :item="child" :open="open" />
+      <TreeItem v-for="child in item.children" :item="child" />
     </ul>
   </li>
 </template>

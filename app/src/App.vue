@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { provide, reactive, ref } from 'vue';
 import type { GlobalProps, Item, Link } from './common';
-import { timeOrDefault, scrollToItem } from './common';
+import { timeOrDefault, scrollToItem, Action } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
@@ -15,6 +15,7 @@ const guide: Item = {
   code: 0,
   name: "凡例",
   start: 1980,
+  action: Action.Open,
   children: [
     {
       code: 1,
@@ -31,6 +32,7 @@ const guide: Item = {
       code: 3,
       name: "以箭头起始的行描述新旧代码间的对应关系",
       start: 1980,
+      action: Action.Open,
       children: [
         {
           code: 4,
@@ -135,12 +137,12 @@ function locateHash(): Item | undefined {
       <label><input type="checkbox" v-model="options.hidePredecessors" />隐藏前身</label>
     </fieldset>
     <ul id="guide" class="top">
-      <TreeItem :item="guide" :open="true" />
+      <TreeItem :item="guide" />
     </ul>
   </header>
   <main>
     <ul class="top">
-      <TreeItem v-for="child in codes" :item="child" :open="false" />
+      <TreeItem v-for="child in codes" :item="child" />
     </ul>
   </main>
 </template>
