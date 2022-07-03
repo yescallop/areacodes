@@ -104,20 +104,15 @@ function scrollToHash() {
 }
 
 function locateHash(): Item | undefined {
-  if (!location.hash.length) {
-    return;
-  }
+  if (!location.hash.length) return;
   let id = location.hash.substring(1);
   let parts = id.split(':');
   if (parts.length == 2) {
     let code = parseInt(parts[0]);
     let time = parseInt(parts[1]);
     let item = props.items.get(code)?.find(item => time == item.start);
-    if (item == undefined) {
-      window.alert("该代码不存在！");
-      return;
-    }
-    return item;
+    if (item != undefined) return item;
+    window.alert("该代码不存在！");
   }
 }
 </script>

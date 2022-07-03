@@ -7,6 +7,7 @@ const gProps = inject<GlobalProps>('props')!;
 const srcItem = inject<Item>('srcItem')!;
 const item = computed(() => {
   let time = props.time - (props.rev ? 1 : 0);
+  // The items are by default descending in time.
   return gProps.items.get(props.code)!.find(item => time >= item.start)!;
 });
 
