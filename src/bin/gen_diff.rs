@@ -13,7 +13,7 @@ fn main() -> Result<()> {
         .status()?
         .success();
     if !clean {
-        println!("Don't do this before you stash or commit the changes!");
+        println!("Don't do this before you stage or commit the changes!");
         return Ok(());
     }
 
