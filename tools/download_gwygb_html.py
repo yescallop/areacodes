@@ -15,8 +15,6 @@ def main():
 
     for year, issues in years.items():
         year = year.removeprefix('y')
-        if year > '2017':
-            continue
 
         for issue in issues.values():
             issue_no = issue['issue']
