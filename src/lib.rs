@@ -1,3 +1,5 @@
+#![warn(rust_2018_idioms)]
+
 use std::{
     fs::{self, File},
     io::{BufRead, BufReader},
@@ -9,7 +11,7 @@ pub use std::io::Result;
 mod diff;
 pub use diff::*;
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Default)]
 pub struct JsonEntry<'a> {
     pub code: u32,
     pub name: &'a str,
@@ -40,22 +42,17 @@ pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Resu
     let mut br = BufReader::new(file);
     let mut buf = String::with_capacity(64);
 
-    loop {
-        match br.read_line(&mut buf) {
-            Ok(0) => return Ok(()),
-            Ok(_n) => {
-                if buf.ends_with('\n') {
-                    buf.pop();
-                    if buf.ends_with('\r') {
-                        buf.pop();
-                    }
-                }
-                f(&buf);
-                buf.clear();
+    while br.read_line(&mut buf)? != 0 {
+        if buf.ends_with('\n') {
+            buf.pop();
+            if buf.ends_with('\r') {
+                buf.pop();
             }
-            Err(e) => return Err(e),
         }
+        f(&buf);
+        buf.clear();
     }
+    Ok(())
 }
 
 pub fn files(path: &str) -> impl Iterator<Item = PathBuf> {

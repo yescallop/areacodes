@@ -66,14 +66,7 @@ fn main() -> Result<()> {
     let mut buf = BufWriter::new(file);
     write!(buf, "{CSV_HEADER}")?;
 
-    let mut root = JsonEntry {
-        code: 0,
-        name: "",
-        start: 0,
-        end: None,
-        successors: vec![],
-        children: vec![],
-    };
+    let mut root = JsonEntry::default();
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -84,9 +77,8 @@ fn main() -> Result<()> {
         let last = entries.len() - if area.deprecated { 2 } else { 1 };
         for i in (0..=last).rev() {
             let entry = &entries[i];
-            let name = match entry.name.as_deref() {
-                Some(name) => name,
-                None => continue,
+            let Some(name) = entry.name.as_deref() else {
+                continue;
             };
             let end = entries.get(i + 1).map(|e| e.time);
             write_entry(
@@ -300,9 +292,8 @@ impl Area {
 
     fn last_name_intersecting(&self, start: u32, end: Option<u32>) -> Option<&str> {
         let last = self.entries.len() - 1;
-        let end = match end {
-            Some(end) => end,
-            None => return self.entries[last].name.as_deref(),
+        let Some(end) = end else {
+            return self.entries[last].name.as_deref();
         };
 
         for i in (0..=last).rev() {
@@ -336,8 +327,8 @@ impl Entry {
     fn new(time: u32, name: Option<&String>, parent_name: Option<&String>) -> Entry {
         Entry {
             time,
-            name: name.map(Clone::clone),
-            parent_name: parent_name.map(Clone::clone),
+            name: name.cloned(),
+            parent_name: parent_name.cloned(),
             attr: BTreeSet::new(),
         }
     }

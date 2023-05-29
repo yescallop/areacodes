@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     io,
 };
@@ -17,7 +18,7 @@ pub struct FwdDiff<'a> {
 pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
     let mut src = DataTable::new();
     let mut dst = DataTable::new();
-    let mut rem = HashMap::<i32, Vec<i32>>::with_capacity(1024);
+    let mut rem = HashMap::with_capacity(1024);
     let mut attr = Vec::new();
 
     for diff in files("diff") {
@@ -42,7 +43,7 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
                 Err(_) => panic!("invalid line in `{file_stem}.txt`: {line}"),
             };
             let code = line.code;
-            let name = &line.name;
+            let name = line.name;
 
             if line.internal {
                 let src_name = src.name_by_code(code);
@@ -61,10 +62,10 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
                 }
             } else {
                 assert!(
-                    dst.name_by_code(code) == Some(&name),
+                    dst.name_by_code(code) == Some(name),
                     "{code}: invalid addition",
                 );
-                if src.name_by_code(code) == Some(&name) {
+                if src.name_by_code(code) == Some(name) {
                     println!("{code}: same-name addition");
                 }
             }
@@ -137,17 +138,17 @@ fn code_dist(a: u32, b: u32) -> u32 {
 fn select(
     table: &DataTable,
     origin: &DataTable,
-    rem: &mut HashMap<i32, Vec<i32>>,
-    line: &Line,
+    rem: &mut HashMap<i32, HashSet<i32>>,
+    line: &Line<'_>,
     res: &mut Vec<u32>,
 ) {
     let code = line.code;
 
-    for sel in &line.attr {
+    for sel in &line.attrs {
         let mut res_code;
         match sel {
             Selector::Name { name, parent } => {
-                let sel_codes = match table.codes_by_name(&name) {
+                let sel_codes = match table.codes_by_name(name) {
                     Some(codes) => codes,
                     None => panic!("{name}@{code}: not found"),
                 };
@@ -170,12 +171,14 @@ fn select(
                     {
                         dist = 2;
                     }
-                    if dist < min_dist {
-                        min_dist = dist;
-                        cnt = 1;
-                        res_code = sel_code;
-                    } else if dist == min_dist {
-                        cnt += 1;
+                    match dist.cmp(&min_dist) {
+                        Ordering::Less => {
+                            min_dist = dist;
+                            cnt = 1;
+                            res_code = sel_code;
+                        }
+                        Ordering::Equal => cnt += 1,
+                        _ => {}
                     }
                 }
 
@@ -210,16 +213,15 @@ fn select(
             (code as i32, -(res_code as i32))
         };
 
-        let mut push = true;
+        let mut insert = true;
         if let Some(rem) = rem.get_mut(&res_code) {
-            if let Some(i) = rem.iter().position(|&x| x == code) {
-                rem.swap_remove(i);
-                push = false;
+            if rem.remove(&code) {
+                insert = false;
             }
         }
-        let vec = rem.entry(code).or_default();
-        if push {
-            vec.push(res_code);
+        let set = rem.entry(code).or_default();
+        if insert {
+            set.insert(res_code);
         }
     }
 }
@@ -243,7 +245,7 @@ impl DataTable {
         self.c2n
             .get(&code)
             .map(|x| &**x)
-            .or_else(|| (code == 0).then(|| "中华人民共和国"))
+            .or_else(|| (code == 0).then_some("中华人民共和国"))
     }
 
     fn parent_code(&self, code: u32) -> u32 {
@@ -273,15 +275,15 @@ impl DataTable {
 }
 
 #[derive(Debug)]
-struct Line {
+struct Line<'a> {
     fwd: bool,
     internal: bool,
     code: u32,
-    name: String,
-    attr: Vec<Selector>,
+    name: &'a str,
+    attrs: Vec<Selector<'a>>,
 }
 
-fn parse_line(line: &str) -> Result<Option<Line>, ()> {
+fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
     if line.is_empty() {
         return Ok(None);
     }
@@ -309,25 +311,25 @@ fn parse_line(line: &str) -> Result<Option<Line>, ()> {
         return Err(());
     }
 
-    let mut attr_v = Vec::new();
+    let mut attrs = Vec::new();
     for mut sel in attr.split(',') {
         if sel.ends_with('?') {
             continue;
         }
-        if sel.ends_with('!') {
-            sel = &sel[..sel.len() - 1];
+        if let Some(stripped) = sel.strip_suffix('!') {
+            sel = stripped;
         }
 
         let sel = match sel {
             "." => Selector::CurCode,
             ".." => Selector::ParentCode,
             _ => {
-                let parent_name = if let Some((name, rest)) = sel.split_once('(') {
-                    if !rest.ends_with(')') {
+                let parent = if let Some((name, rest)) = sel.split_once('(') {
+                    let Some(parent) = rest.strip_suffix(')') else {
                         return Err(());
-                    }
+                    };
                     sel = name;
-                    Some(rest[..rest.len() - 1].into())
+                    Some(parent)
                 } else {
                     None
                 };
@@ -335,29 +337,26 @@ fn parse_line(line: &str) -> Result<Option<Line>, ()> {
                 if sel == "#" {
                     sel = name;
                 }
-                Selector::Name {
-                    name: sel.into(),
-                    parent: parent_name,
-                }
+                Selector::Name { name: sel, parent }
             }
         };
-        attr_v.push(sel);
+        attrs.push(sel);
     }
 
     Ok(Some(Line {
         fwd,
         internal,
         code,
-        name: name.into(),
-        attr: attr_v,
+        name,
+        attrs,
     }))
 }
 
 #[derive(Debug)]
-enum Selector {
+enum Selector<'a> {
     Name {
-        name: String,
-        parent: Option<String>,
+        name: &'a str,
+        parent: Option<&'a str>,
     },
     CurCode,
     ParentCode,
