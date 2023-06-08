@@ -30,17 +30,14 @@
 
 ## 原始数据来源
 
-- [中华人民共和国县级以上行政区划代码][1] ([2018][1.1], [2019][1.2], [2020][1.3])，民政部
+- [中华人民共和国县级以上行政区划代码][1]，民政部
 - [县级以上行政区划变更情况][2]，民政部
 - [中华人民共和国行政区划沿革][3]，中国政府网
 
 [preview]: https://yescallop.cn/areacodes/
 [CSV]: https://raw.githubusercontent.com/yescallop/areacodes/master/result.csv
 [JSON]: https://raw.githubusercontent.com/yescallop/areacodes/master/codes.json
-[1]: http://www.mca.gov.cn/article/sj/xzqh/1980/
-[1.1]: http://www.mca.gov.cn/article/sj/xzqh/2018/
-[1.2]: http://www.mca.gov.cn/article/sj/xzqh/2019/
-[1.3]: http://www.mca.gov.cn/article/sj/xzqh/2020/
+[1]: https://www.mca.gov.cn/n156/n186/index.html
 [2]: http://xzqh.mca.gov.cn/description?dcpid=1
 [3]: http://www.gov.cn/test/2006-02/27/content_212020.htm
 [CC0]: https://creativecommons.org/publicdomain/zero/1.0/deed.zh
