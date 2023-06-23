@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref } from 'vue';
+import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
 import type { GlobalProps, Item, LinkZipped } from '@/common';
 import { timeOrDefault, Action } from '@/common';
 import Links from './Links.vue';
@@ -11,8 +11,20 @@ provide('srcItem', props.item);
 
 const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(false);
+const isHidden = computed(() => {
+  if (props.item.code < 100000) return false;
+  let res = gProps.searchResult.value;
+  return res != undefined && !res.has(toRaw(props.item));
+});
 const links = computed(() => zipLinks(getLinks()));
 const headLink = ref<HTMLElement>();
+
+if (props.item.code == 0) {
+  watch(isOpen, v => v ?
+    localStorage.removeItem("closeGuide") :
+    localStorage.setItem("closeGuide", "true")
+  );
+}
 
 onMounted(() => {
   props.item.act = act;
@@ -28,7 +40,9 @@ function act() {
   let action = props.item.action;
   if (action != undefined) {
     if (action == Action.Open) {
-      isOpen.value = true;
+      isOpen.value = isFolder.value;
+    } else if (action == Action.Close) {
+      isOpen.value = false;
     } else {
       let hash = `#${props.item.code}:${props.item.start}`;
       if (hash != location.hash) {
@@ -127,14 +141,17 @@ function onKeyDown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <li>
+  <li v-if="!isHidden">
     <div :class="{ obsolete: item.end, leaf: !isFolder }">
       <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
       <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scrollOpen" @keydown="onKeyDown">{{
-          item.code
+        item.code
       }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
-      {{ item.name }}
+      <template v-if="!item.name.startsWith(gProps.options.searchText)">{{ item.name }}</template>
+      <template v-else><span class="hit">{{ gProps.options.searchText }}</span>{{
+        item.name.substring(gProps.options.searchText.length)
+      }}</template>
     </div>
     <Links :links="links" />
     <ul v-if="isOpen">
@@ -155,5 +172,9 @@ function onKeyDown(e: KeyboardEvent) {
 .toggle {
   user-select: none;
   padding-right: 1ch;
+}
+
+.hit {
+  text-decoration: underline;
 }
 </style>

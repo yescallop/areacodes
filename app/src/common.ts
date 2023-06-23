@@ -1,10 +1,15 @@
+import type { Ref } from 'vue';
+
 export interface GlobalProps {
   options: {
     hideSuccessors: boolean,
     hidePredecessors: boolean,
+    searchText: string,
   },
   items: Map<number, Item[]>,
   predecessors: Map<number, Link[]>,
+  searchResult: Ref<Set<Item> | undefined>,
+  resolveLink: (code: number, time: number, rev: boolean) => Item,
 }
 
 export interface Item {
@@ -18,11 +23,14 @@ export interface Item {
   parent?: Item,
   action?: Action,
   act?: () => void,
+  isSearchHit?: boolean,
 }
 
 export enum Action {
   // Open only.
   Open,
+  // Close only.
+  Close,
   // Focus only.
   Focus,
   // Open if the item is a folder, focus and scroll.

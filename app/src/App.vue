@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide, reactive, ref } from 'vue';
+import { computed, provide, reactive, ref, watch } from 'vue';
 import type { GlobalProps, Item, Link } from './common';
 import { timeOrDefault, scrollToItem, Action } from './common';
 import TreeItem from './components/TreeItem.vue';
@@ -15,7 +15,7 @@ const guide: Item = {
   code: 0,
   name: "凡例",
   start: 1980,
-  action: Action.Open,
+  action: localStorage.getItem("closeGuide") == null ? Action.Open : undefined,
   children: [
     {
       code: 1,
@@ -36,13 +36,13 @@ const guide: Item = {
       children: [
         {
           code: 4,
-          name: "向右的直箭头表明代码的后继",
+          name: "向右的箭头表明代码的后继",
           start: 1980,
           successors: [{ code: 5, time: 1990 }]
         },
         {
           code: 5,
-          name: "向左的直箭头表明代码的前身",
+          name: "向左的箭头表明代码的前身",
           start: 1990,
         },
       ]
@@ -52,18 +52,127 @@ const guide: Item = {
       name: "支持键盘操作（Tab、回车、退格）",
       start: 1980,
     },
+    {
+      code: 7,
+      name: "仅支持代码、名称前缀搜索",
+      start: 1980,
+    }
   ]
 };
 
 const options = reactive({
   hideSuccessors: false,
   hidePredecessors: false,
+  searchText: "",
 });
 
 const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
 
-const props: GlobalProps = { options, items, predecessors };
+let indexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
+const indexArr: { name: string; items: Item[]; }[] = [];
+
+const searchResult = computed(() => {
+  let text = options.searchText;
+  if (text.length == 0) {
+    return undefined;
+  }
+
+  let res = new Set<Item>();
+  if (/^[1-9]\d(\d{2}){0,2}$/.test(text)) {
+    let code = parseInt(text);
+    while (code < 100000) code *= 100;
+    items.get(code)?.forEach(item => {
+      searchHit(item);
+      res.add(item);
+    });
+  } else {
+    let i = binarySearch(indexArr, t => t.name.localeCompare(text));
+    while (i < indexArr.length) {
+      let { name, items } = indexArr[i];
+      if (!name.startsWith(text)) break;
+      items.forEach(item => {
+        searchHit(item);
+        res.add(item);
+      });
+      i += 1;
+    }
+  }
+
+  for (const item of res) {
+    if (item.parent != undefined) res.add(item.parent);
+    if (item.isSearchHit) {
+      item.children?.forEach(child => {
+        if (res.has(child) && !child.isSearchHit) {
+          // Move it to the end of the set in order to ensure
+          // that its successors and predecessors are added.
+          res.delete(child);
+        }
+        child.isSearchHit = true;
+        res.add(child);
+      });
+
+      if (!options.hideSuccessors)
+        addSuccessors(item, item.start, res);
+      if (!options.hidePredecessors)
+        addPredecessors(item, Infinity, res);
+      item.isSearchHit = undefined;
+    }
+  }
+  return res;
+});
+
+function searchHit(item: Item) {
+  item.isSearchHit = true;
+  item.action = Action.Open;
+  while (item.parent != undefined) {
+    item.parent.action = Action.Open;
+    item = item.parent;
+  }
+}
+
+function resolveLink(code: number, time: number, rev: boolean): Item {
+  if (rev) time -= 1;
+  // The items are by default descending in time.
+  return items.get(code)!.find(item => time >= item.start)!;
+}
+
+function addSuccessors(item: Item, after: number, res: Set<Item>) {
+  item.successors?.forEach(link => {
+    let time = timeOrDefault(link, item);
+    if (time > after) {
+      let su = resolveLink(link.code, time, false);
+      res.add(su);
+      addSuccessors(su, time, res);
+    }
+  });
+}
+
+function addPredecessors(item: Item, before: number, res: Set<Item>) {
+  predecessors.get(item.code)?.forEach(link => {
+    let time = link.time!;
+    if (time >= item.start && time < before && (item.end == undefined || time < item.end)) {
+      let pre = resolveLink(link.code, time, true);
+      res.add(pre);
+      addPredecessors(pre, time, res);
+    }
+  });
+}
+
+watch(searchResult, res => {
+  if (res == undefined) {
+    codes.value.forEach(item => {
+      item.action = Action.Close;
+      if (item.act != undefined) item.act();
+    });
+  } else {
+    res.forEach(item => {
+      if (item.act != undefined) item.act();
+    });
+  }
+});
+
+const props: GlobalProps = { options, items, predecessors, searchResult, resolveLink };
 provide('props', props);
 
 insertItem(guide);
@@ -72,6 +181,7 @@ fetch(codesUrl)
   .then(resp => resp.json())
   .then((arr: Item[]) => {
     arr.forEach(item => insertItem(item));
+    createIndexArr();
     scrollToHash();
     codes.value = arr;
   });
@@ -81,6 +191,13 @@ function insertItem(item: Item, parent?: Item) {
   if (arr == undefined) {
     arr = [];
     items.set(item.code, arr);
+  }
+  arr.push(item);
+
+  arr = indexMap!.get(item.name);
+  if (arr == undefined) {
+    arr = [];
+    indexMap!.set(item.name, arr);
   }
   arr.push(item);
 
@@ -96,9 +213,37 @@ function insertItem(item: Item, parent?: Item) {
   item.parent = parent;
 }
 
+function createIndexArr() {
+  indexMap!.forEach((items, name) => indexArr.push({ name, items }));
+  indexMap = undefined;
+  indexArr.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Stolen from `slice::binary_search_by` in Rust.
+// In both cases a nonnegative index is returned.
+function binarySearch<T>(arr: T[], f: (t: T) => number): number {
+  let size = arr.length;
+  let left = 0;
+  let right = size;
+  while (left < right) {
+    let mid = left + (size >>> 1);
+    let cmp = f(arr[mid]);
+    if (cmp < 0) {
+      left = mid + 1;
+    } else if (cmp > 0) {
+      right = mid;
+    } else {
+      return mid;
+    }
+    size = right - left;
+  }
+  return left;
+}
+
 window.onhashchange = scrollToHash;
 
 function scrollToHash() {
+  options.searchText = "";
   let item = locateHash();
   if (item != undefined) scrollToItem(item);
 }
@@ -136,6 +281,7 @@ function locateHash(): Item | undefined {
     </ul>
   </header>
   <main>
+    <label>搜索：<input type="search" v-model="options.searchText" /></label>
     <ul class="top">
       <TreeItem v-for="child in codes" :item="child" />
     </ul>
