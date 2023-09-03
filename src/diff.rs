@@ -4,7 +4,7 @@ use std::{
     io,
 };
 
-use crate::{files, for_each_line_in, read_data};
+use crate::{consts::*, files, for_each_line_in, read_data};
 
 #[derive(Debug)]
 pub struct FwdDiff<'a> {
@@ -21,16 +21,16 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
     let mut rem = HashMap::with_capacity(1024);
     let mut attr = Vec::new();
 
-    for diff in files("diff") {
+    for diff in files(DIFF_DIRECTORY) {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
         let (src_year, dst_year) = file_stem.split_once('-').unwrap();
 
         println!("----- {file_stem} -----");
 
-        read_data(&format!("data/{src_year}.txt"), |code, name| {
+        read_data(&format!("{DATA_DIRECTORY}/{src_year}.txt"), |code, name| {
             src.insert(code, name);
         })?;
-        read_data(&format!("data/{dst_year}.txt"), |code, name| {
+        read_data(&format!("{DATA_DIRECTORY}/{dst_year}.txt"), |code, name| {
             dst.insert(code, name);
         })?;
 
@@ -40,7 +40,7 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
             let line = match parse_line(line) {
                 Ok(Some(line)) => line,
                 Ok(None) => return,
-                Err(_) => panic!("invalid line in `{file_stem}.txt`: {line}"),
+                Err(_) => panic!("invalid line in `{file_stem}.diff`: {line}"),
             };
             let code = line.code;
             let name = line.name;
@@ -144,7 +144,7 @@ fn select(
 ) {
     let code = line.code;
 
-    for sel in &line.attrs {
+    for sel in &line.attr {
         let mut res_code;
         match sel {
             Selector::Name { name, parent } => {
@@ -250,7 +250,11 @@ impl DataTable {
 
     fn parent_code(&self, code: u32) -> u32 {
         let code = parent(code);
-        self.c2n.get(&code).map_or_else(|| parent(code), |_| code)
+        if self.c2n.contains_key(&code) {
+            code
+        } else {
+            parent(code)
+        }
     }
 
     fn codes_by_name(&self, name: &str) -> Option<&[u32]> {
@@ -280,7 +284,7 @@ struct Line<'a> {
     internal: bool,
     code: u32,
     name: &'a str,
-    attrs: Vec<Selector<'a>>,
+    attr: Vec<Selector<'a>>,
 }
 
 fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
@@ -302,7 +306,7 @@ fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
     assert_eq!(line.as_bytes()[7], b'\t');
 
     let line = &line[8..];
-    let (name, attr) = line.split_once(['>', '<']).ok_or(())?;
+    let (name, attr_str) = line.split_once(['>', '<']).ok_or(())?;
 
     let actual_fwd = line.as_bytes()[name.len()] == b'>';
     if internal {
@@ -311,8 +315,8 @@ fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
         return Err(());
     }
 
-    let mut attrs = Vec::new();
-    for mut sel in attr.split(',') {
+    let mut attr = Vec::new();
+    for mut sel in attr_str.split(',') {
         if sel.ends_with('?') {
             continue;
         }
@@ -340,7 +344,7 @@ fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
                 Selector::Name { name: sel, parent }
             }
         };
-        attrs.push(sel);
+        attr.push(sel);
     }
 
     Ok(Some(Line {
@@ -348,7 +352,7 @@ fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
         internal,
         code,
         name,
-        attrs,
+        attr,
     }))
 }
 

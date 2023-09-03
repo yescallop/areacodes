@@ -8,6 +8,15 @@ use std::{
 
 pub use std::io::Result;
 
+pub mod consts {
+    pub const DATA_DIRECTORY: &str = "data";
+    pub const DIFF_DIRECTORY: &str = "diff";
+    pub const RESULT_CSV_PATH: &str = "result.csv";
+    pub const RESULT_JSON_PATH: &str = "codes.json";
+    pub const CSV_HEADER: &str =
+        "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
+}
+
 mod diff;
 pub use diff::*;
 
@@ -27,7 +36,7 @@ pub struct JsonEntry<'a> {
 #[derive(serde::Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Successor {
     #[serde(skip_serializing_if = "is_default")]
-    pub opt: bool,
+    pub optional: bool,
     #[serde(skip_serializing_if = "is_default")]
     pub time: u32,
     pub code: u32,

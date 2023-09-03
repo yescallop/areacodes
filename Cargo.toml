@@ -3,6 +3,7 @@ name = "areacodes"
 version = "0.1.0"
 authors = ["Scallop Ye"]
 edition = "2021"
+default-run = "areacodes"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

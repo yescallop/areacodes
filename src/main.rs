@@ -5,13 +5,7 @@ use std::{
     time::Instant,
 };
 
-use areacodes::*;
-
-const DATA_DIRECTORY: &str = "data";
-const RESULT_CSV_FILENAME: &str = "result.csv";
-const RESULT_JSON_FILENAME: &str = "codes.json";
-const CSV_HEADER: &str =
-    "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
+use areacodes::{consts::*, *};
 
 fn main() -> Result<()> {
     let start = Instant::now();
@@ -62,9 +56,9 @@ fn main() -> Result<()> {
 
     insert_diff(&mut all_map)?;
 
-    let file = File::create(RESULT_CSV_FILENAME).expect("failed to create result file");
-    let mut buf = BufWriter::new(file);
-    write!(buf, "{CSV_HEADER}")?;
+    let file = File::create(RESULT_CSV_PATH).expect("failed to create result file");
+    let mut bw = BufWriter::new(file);
+    write!(bw, "{CSV_HEADER}")?;
 
     let mut root = JsonEntry::default();
 
@@ -82,7 +76,7 @@ fn main() -> Result<()> {
             };
             let end = entries.get(i + 1).map(|e| e.time);
             write_entry(
-                &mut buf,
+                &mut bw,
                 &mut root,
                 &all_map,
                 code,
@@ -94,10 +88,10 @@ fn main() -> Result<()> {
             )?;
         }
     }
-    buf.flush()?;
 
-    let file = File::create(RESULT_JSON_FILENAME).expect("failed to create result file");
-    serde_json::to_writer(file, &root.children).expect("failed to output json");
+    let file = File::create(RESULT_JSON_PATH).expect("failed to create result file");
+    bw = BufWriter::new(file);
+    serde_json::to_writer(bw, &root.children).expect("failed to output json");
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
@@ -118,7 +112,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
         entry.attr.extend(fd.attr.iter().map(|&code| Successor {
             time: fd.time,
             code,
-            opt: fd.optional,
+            optional: fd.optional,
         }));
     })?;
     for (&code, area) in map.iter_mut() {
@@ -127,7 +121,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
             let entry = &mut area.entries[i];
             if entry.attr.iter().rev().next().map(|su| su.time) != Some(next_time) {
                 entry.attr.insert(Successor {
-                    opt: false,
+                    optional: false,
                     time: next_time,
                     code,
                 });
@@ -201,7 +195,7 @@ fn write_entry<'a>(
         successors: attr
             .iter()
             .copied()
-            .filter(|su| !su.opt)
+            .filter(|su| !su.optional)
             .map(|mut su| {
                 if end == Some(su.time) {
                     su.time = 0;

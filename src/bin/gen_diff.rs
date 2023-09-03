@@ -5,7 +5,7 @@ use std::{
     process::Command,
 };
 
-use areacodes::files;
+use areacodes::{consts::*, *};
 
 fn main() -> Result<()> {
     let clean = Command::new("git")
@@ -22,8 +22,8 @@ fn main() -> Result<()> {
         let res = Command::new("git")
             .args(["diff", "-U0", "--no-index"])
             .args([
-                format!("data/{}.txt", pair[0]),
-                format!("data/{}.txt", pair[1]),
+                format!("{DATA_DIRECTORY}/{}.txt", pair[0]),
+                format!("{DATA_DIRECTORY}/{}.txt", pair[1]),
             ])
             .output()?
             .stdout;
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
             }
         }
 
-        let file = File::create(format!("diff/{}-{}.diff", pair[0], pair[1]))?;
+        let file = File::create(format!("{DIFF_DIRECTORY}/{}-{}.diff", pair[0], pair[1]))?;
         let mut bw = BufWriter::new(file);
 
         for line in lines {
@@ -64,5 +64,5 @@ fn main() -> Result<()> {
 }
 
 fn file_stems() -> impl Iterator<Item = String> {
-    files("data").map(|path| path.file_stem().unwrap().to_string_lossy().into())
+    files(DATA_DIRECTORY).map(|path| path.file_stem().unwrap().to_string_lossy().into())
 }
