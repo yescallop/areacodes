@@ -1,6 +1,7 @@
 #![warn(rust_2018_idioms)]
 
 use std::{
+    collections::BTreeSet,
     fs::{self, File},
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -65,10 +66,12 @@ pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Resu
 }
 
 pub fn files(path: &str) -> impl Iterator<Item = PathBuf> {
-    fs::read_dir(path)
+    let files: BTreeSet<_> = fs::read_dir(path)
         .unwrap_or_else(|_| panic!("failed to read directory: {path}"))
         .map(|e| e.unwrap().path())
         .filter(|p| p.is_file())
+        .collect();
+    files.into_iter()
 }
 
 pub fn read_data(path: &impl AsRef<Path>, mut f: impl FnMut(u32, String)) -> Result<()> {
