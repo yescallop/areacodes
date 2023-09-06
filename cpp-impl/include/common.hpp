@@ -32,13 +32,13 @@ using std::from_chars;
 using std::function;
 using std::ifstream;
 using std::invalid_argument;
+using std::ios;
 using std::logic_error;
 using std::make_optional;
 using std::make_pair;
 using std::move;
 using std::nullopt;
 using std::ofstream;
-using std::operator""sv;
 using std::optional;
 using std::pair;
 using std::runtime_error;
@@ -54,6 +54,8 @@ using std::variant;
 using std::vector;
 using std::visit;
 using std::views::split;
+
+using namespace std::string_view_literals;
 
 namespace chrono = std::chrono;
 namespace fs = std::filesystem;

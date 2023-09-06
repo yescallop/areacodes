@@ -98,7 +98,7 @@ optional<Line> Line::parse(string_view line) {
 
     vector<Selector> attr = {};
     for (const auto range : split(attr_str, ',')) {
-        string_view sel_str(range.begin(), range.end());
+        string_view sel_str(range);
         if (sel_str.ends_with('?'))
             continue;
         if (sel_str.ends_with('!'))

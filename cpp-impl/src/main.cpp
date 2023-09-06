@@ -50,7 +50,7 @@ int main() {
 
     insert_diff(all_map);
 
-    ofstream os(consts::RESULT_CSV_PATH);
+    ofstream os(consts::RESULT_CSV_PATH, ios::binary);
     os << consts::CSV_HEADER;
 
     JsonEntry root = {};
