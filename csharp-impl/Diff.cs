@@ -1,6 +1,4 @@
-﻿namespace Areacodes;
-
-record FwdDiff(uint Time, uint Code, bool Internal, bool Optional, List<uint> Attr);
+﻿record FwdDiff(uint Time, uint Code, bool Internal, bool Optional, List<uint> Attr);
 
 abstract record Selector
 {

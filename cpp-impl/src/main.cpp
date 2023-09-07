@@ -79,6 +79,7 @@ int main() {
         }
     }
 
+    os.close();
     auto ec =
         glz::write_file_json(root.children, consts::RESULT_JSON_PATH, string());
     if (ec)

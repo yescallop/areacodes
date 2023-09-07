@@ -1,7 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Areacodes;
-
 static class Constants
 {
     public const string DataDirectory = "../data";
