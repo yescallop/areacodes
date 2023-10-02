@@ -264,9 +264,8 @@ void select(const DataTable &table, const DataTable &origin,
 
         auto cur_code = [&](CurCode) {
             res_code = code;
-            if (!table.name_by_code(code)) {
+            if (!table.name_by_code(code))
                 throw runtime_error(format("{}: not found", code));
-            }
         };
 
         auto parent_code = [&](ParentCode) {
@@ -293,10 +292,8 @@ void select(const DataTable &table, const DataTable &origin,
 
         bool insert = true;
         auto it = rem.find(res_code);
-        if (it != rem.end()) {
-            if (it->second.erase(code))
-                insert = false;
-        }
+        if (it != rem.end() && it->second.erase(code))
+            insert = false;
 
         unordered_set<i32> &rem_set = rem.try_emplace(code).first->second;
         if (insert)

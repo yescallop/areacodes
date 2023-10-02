@@ -62,8 +62,8 @@ namespace fs = std::filesystem;
 
 typedef std::int32_t i32;
 typedef std::uint32_t u32;
-typedef std::size_t usize;
 typedef std::ptrdiff_t isize;
+typedef std::size_t usize;
 
 struct string_hash {
     using hash_type = std::hash<string_view>;
