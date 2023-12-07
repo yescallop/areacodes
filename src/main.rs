@@ -56,11 +56,13 @@ fn main() -> Result<()> {
 
     insert_diff(&mut all_map)?;
 
-    let file = File::create(RESULT_CSV_PATH).expect("failed to create result file");
-    let mut bw = BufWriter::new(file);
-    write!(bw, "{CSV_HEADER}")?;
-
-    let mut root = JsonEntry::default();
+    let mut out = Output {
+        csv: BufWriter::new(File::create(OUTPUT_CSV_PATH)?),
+        json: JsonEntry::default(),
+        sql_codes: BufWriter::new(File::create(OUTPUT_SQL_CODES_PATH)?),
+        sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
+    };
+    write!(out.csv, "{CSV_HEADER}")?;
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -76,8 +78,7 @@ fn main() -> Result<()> {
             };
             let end = entries.get(i + 1).map(|e| e.time);
             write_entry(
-                &mut bw,
-                &mut root,
+                &mut out,
                 &all_map,
                 code,
                 name,
@@ -89,9 +90,8 @@ fn main() -> Result<()> {
         }
     }
 
-    let file = File::create(RESULT_JSON_PATH).expect("failed to create result file");
-    bw = BufWriter::new(file);
-    serde_json::to_writer(bw, &root.children).expect("failed to output json");
+    let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
+    serde_json::to_writer(bw, &out.json.children).expect("failed to write JSON data");
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
@@ -142,9 +142,15 @@ fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
     map.get(&code)
 }
 
+struct Output<'a> {
+    csv: BufWriter<File>,
+    json: JsonEntry<'a>,
+    sql_codes: BufWriter<File>,
+    sql_changes: BufWriter<File>,
+}
+
 fn write_entry<'a>(
-    buf: &mut impl Write,
-    root: &mut JsonEntry<'a>,
+    out: &mut Output<'a>,
     map: &HashMap<u32, Area>,
     code: u32,
     name: &'a str,
@@ -153,7 +159,7 @@ fn write_entry<'a>(
     is_last: bool,
     attr: &BTreeSet<Successor>,
 ) -> Result<()> {
-    let mut entry = root;
+    let mut entry = &mut out.json;
     let level = Level::from_code(code);
 
     let prov_code = code / 10000 * 10000;
@@ -214,7 +220,7 @@ fn write_entry<'a>(
         "变更"
     };
     write!(
-        buf,
+        out.csv,
         "{},{},{},{},{},{},{},",
         code,
         prov_name,
@@ -225,22 +231,36 @@ fn write_entry<'a>(
         start
     )?;
     if let Some(end) = end {
-        write!(buf, "{end}")?;
+        write!(out.csv, "{end}")?;
     }
 
-    write!(buf, ",")?;
+    write!(
+        out.sql_codes,
+        "INSERT INTO `codes` VALUES ({code}, '{name}', {start}, "
+    )?;
+    match end {
+        Some(end) => writeln!(out.sql_codes, "{end});")?,
+        None => writeln!(out.sql_codes, "NULL);")?,
+    }
+
+    write!(out.csv, ",")?;
     let sus: BTreeSet<_> = attr.iter().map(|su| (su.time, su.code)).collect();
-    for (i, &(time, code)) in sus.iter().enumerate() {
+    for (i, &(time, new_code)) in sus.iter().enumerate() {
         if i != 0 {
-            write!(buf, ";")?;
+            write!(out.csv, ";")?;
         }
-        write!(buf, "{}", code)?;
+        write!(out.csv, "{}", new_code)?;
         if end != Some(time) {
-            write!(buf, "[{}]", time)?;
+            write!(out.csv, "[{}]", time)?;
         }
+
+        writeln!(
+            out.sql_changes,
+            "INSERT INTO `changes` VALUES ({code}, {start}, {new_code}, {time}, NULL);"
+        )?;
     }
 
-    writeln!(buf)
+    writeln!(out.csv)
 }
 
 #[derive(PartialEq, Eq)]

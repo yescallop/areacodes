@@ -12,8 +12,10 @@ pub use std::io::Result;
 pub mod consts {
     pub const DATA_DIRECTORY: &str = "data";
     pub const DIFF_DIRECTORY: &str = "diff";
-    pub const RESULT_CSV_PATH: &str = "result.csv";
-    pub const RESULT_JSON_PATH: &str = "codes.json";
+    pub const OUTPUT_CSV_PATH: &str = "result.csv";
+    pub const OUTPUT_JSON_PATH: &str = "codes.json";
+    pub const OUTPUT_SQL_CODES_PATH: &str = "sql/codes.sql";
+    pub const OUTPUT_SQL_CHANGES_PATH: &str = "sql/changes.sql";
     pub const CSV_HEADER: &str =
         "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
 }
