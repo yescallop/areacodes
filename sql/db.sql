@@ -35,7 +35,7 @@ CREATE TABLE `codes`  (
 DROP TABLE IF EXISTS `details`;
 CREATE TABLE `details`  (
   `id` int NOT NULL AUTO_INCREMENT,
-  `text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_zh_0900_as_cs NULL,
+  `text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_zh_0900_as_cs NOT NULL,
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_zh_0900_as_cs;
 
