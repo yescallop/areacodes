@@ -1,7 +1,7 @@
 use std::{
     collections::{hash_map::Entry::*, BTreeSet, HashMap},
     fs::File,
-    io::{BufWriter, Result, Write},
+    io::{BufWriter, Result, Seek, Write},
     time::Instant,
 };
 
@@ -63,6 +63,8 @@ fn main() -> Result<()> {
         sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
     };
     write!(out.csv, "{CSV_HEADER}")?;
+    write!(out.sql_codes, "{SQL_CODES_HEADER}")?;
+    write!(out.sql_changes, "{SQL_CHANGES_HEADER}")?;
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -92,6 +94,9 @@ fn main() -> Result<()> {
 
     let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
     serde_json::to_writer(bw, &out.json.children).expect("failed to write JSON data");
+
+    writeln!(out.sql_codes, ";")?;
+    writeln!(out.sql_changes, ";")?;
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
@@ -234,13 +239,14 @@ fn write_entry<'a>(
         write!(out.csv, "{end}")?;
     }
 
-    write!(
-        out.sql_codes,
-        "INSERT INTO `codes` VALUES ({code}, '{name}', {start}, "
-    )?;
+    if out.sql_codes.stream_position()? != SQL_CODES_HEADER.len() as u64 {
+        writeln!(out.sql_codes, ",")?;
+    }
+
+    write!(out.sql_codes, "({code}, '{name}', {start}, ")?;
     match end {
-        Some(end) => writeln!(out.sql_codes, "{end});")?,
-        None => writeln!(out.sql_codes, "NULL);")?,
+        Some(end) => write!(out.sql_codes, "{end})")?,
+        None => write!(out.sql_codes, "NULL)")?,
     }
 
     write!(out.csv, ",")?;
@@ -254,10 +260,11 @@ fn write_entry<'a>(
             write!(out.csv, "[{}]", time)?;
         }
 
-        writeln!(
-            out.sql_changes,
-            "INSERT INTO `changes` VALUES ({code}, {start}, {new_code}, {time}, NULL);"
-        )?;
+        if out.sql_changes.stream_position()? != SQL_CHANGES_HEADER.len() as u64 {
+            writeln!(out.sql_changes, ",")?;
+        }
+
+        write!(out.sql_changes, "({code}, {start}, {new_code}, {time})")?;
     }
 
     writeln!(out.csv)
