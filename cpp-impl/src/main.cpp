@@ -144,11 +144,9 @@ void write_entry(ofstream &os, JsonEntry &root,
         } else {
             u32 pref_code = code / 100 * 100;
             optional<string_view> pref_name_opt = nullopt;
-            const Area *area;
             if (level_from_code(pref_code) == Level::Prefecture) {
                 auto area_it = map.find(pref_code);
                 if (area_it != map.end()) {
-                    area = &area_it->second;
                     pref_name_opt =
                         area_it->second.last_name_intersecting(start, end);
                 }
