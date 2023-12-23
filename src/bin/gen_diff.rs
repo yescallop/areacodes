@@ -19,7 +19,7 @@ fn main() -> Result<()> {
 
     let file_stems = file_stems().collect::<Vec<_>>();
     for pair in file_stems.windows(2) {
-        let res = Command::new("git")
+        let out = Command::new("git")
             .args(["diff", "-U0", "--no-index"])
             .args([
                 format!("{DATA_DIRECTORY}/{}.txt", pair[0]),
@@ -28,15 +28,15 @@ fn main() -> Result<()> {
             .output()?
             .stdout;
 
-        if res.is_empty() {
+        if out.is_empty() {
             continue;
         }
-        let res = unsafe { String::from_utf8_unchecked(res) };
+        let out = String::from_utf8(out).expect("output not UTF-8");
 
         let mut lines = Vec::<&str>::new();
         let mut records = HashMap::<&str, usize>::new();
 
-        for line in res.lines().skip(4) {
+        for line in out.lines().skip(4) {
             if !line.starts_with(['@', '\\']) {
                 match records.entry(&line[1..]) {
                     Entry::Occupied(e) => {
