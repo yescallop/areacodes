@@ -11,7 +11,7 @@ pub struct FwdDiff<'a> {
     pub time: u32,
     pub code: u32,
     pub internal: bool,
-    pub optional: bool,
+    pub is_summary: bool,
     pub attr: &'a [u32],
 }
 
@@ -76,14 +76,14 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
             select(table, origin, &mut rem, &line, &mut attr);
 
             assert!(!attr.is_empty(), "{code}: empty attr");
-            let optional = origin.has_children(code);
+            let is_summary = origin.has_children(code);
 
             if line.fwd {
                 f(FwdDiff {
                     time,
                     code,
                     internal: line.internal,
-                    optional,
+                    is_summary,
                     attr: &attr[..],
                 })
             } else {
@@ -92,7 +92,7 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
                         time,
                         code: sel_code,
                         internal: line.internal,
-                        optional,
+                        is_summary,
                         attr: &[code],
                     })
                 }

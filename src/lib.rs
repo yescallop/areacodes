@@ -21,7 +21,7 @@ pub mod consts {
     pub const SQL_CODES_HEADER: &str =
         "INSERT INTO `codes` (`code`, `name`, `start`, `end`) VALUES\n";
     pub const SQL_CHANGES_HEADER: &str =
-        "INSERT INTO `changes` (`code`, `start`, `new_code`, `time`) VALUES\n";
+        "INSERT INTO `changes` (`code`, `new_code`, `time`) VALUES\n";
 }
 
 mod diff;
@@ -43,10 +43,10 @@ pub struct JsonEntry<'a> {
 #[derive(serde::Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Successor {
     #[serde(skip_serializing_if = "is_default")]
-    pub optional: bool,
-    #[serde(skip_serializing_if = "is_default")]
     pub time: u32,
     pub code: u32,
+    #[serde(skip_serializing_if = "is_default")]
+    pub is_summary: bool,
 }
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {

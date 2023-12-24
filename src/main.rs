@@ -117,7 +117,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
         entry.attr.extend(fd.attr.iter().map(|&code| Successor {
             time: fd.time,
             code,
-            optional: fd.optional,
+            is_summary: fd.is_summary,
         }));
     })?;
     for (&code, area) in map.iter_mut() {
@@ -126,7 +126,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
             let entry = &mut area.entries[i];
             if entry.attr.iter().rev().next().map(|su| su.time) != Some(next_time) {
                 entry.attr.insert(Successor {
-                    optional: false,
+                    is_summary: false,
                     time: next_time,
                     code,
                 });
@@ -206,7 +206,7 @@ fn write_entry<'a>(
         successors: attr
             .iter()
             .copied()
-            .filter(|su| !su.optional)
+            .filter(|su| !su.is_summary)
             .map(|mut su| {
                 if end == Some(su.time) {
                     su.time = 0;
@@ -259,13 +259,15 @@ fn write_entry<'a>(
         if end != Some(time) {
             write!(out.csv, "[{}]", time)?;
         }
+    }
 
+    attr.iter().filter(|su| !su.is_summary).try_for_each(|su| {
         if out.sql_changes.stream_position()? != SQL_CHANGES_HEADER.len() as u64 {
             writeln!(out.sql_changes, ",")?;
         }
 
-        write!(out.sql_changes, "({code}, {start}, {new_code}, {time})")?;
-    }
+        write!(out.sql_changes, "({code}, {}, {})", su.code, su.time)
+    })?;
 
     writeln!(out.csv)
 }
