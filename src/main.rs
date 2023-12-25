@@ -109,12 +109,28 @@ fn main() -> Result<()> {
     serde_json::to_writer(bw, &out.json.children).expect("failed to write JSON data");
 
     for (id, rows) in details_map.into_iter() {
-        for (i, (code, new_code, time)) in rows.into_iter().enumerate() {
+        if rows.len() == 1 {
+            let id = if id == 0 { "@id" } else { "@id := @id + 1" };
+            let (code, new_code, time) = rows[0];
             writeln!(
                 out.sql_details,
-                "UPDATE `changes` SET `details_id` = {} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
-                if id != 0 && i == 0 { "@id := @id + 1" } else { "@id" }
+                "UPDATE `changes` SET `details_id` = {id} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
             )?;
+        } else {
+            if id != 0 {
+                writeln!(out.sql_details, "SET @id = @id + 1;")?;
+            }
+            write!(
+                out.sql_details,
+                "UPDATE `changes` SET `details_id` = @id WHERE (`code`, `new_code`, `time`) IN (",
+            )?;
+            for (i, (code, new_code, time)) in rows.into_iter().enumerate() {
+                if i != 0 {
+                    write!(out.sql_details, ", ")?;
+                }
+                write!(out.sql_details, "({code}, {new_code}, {time})")?;
+            }
+            writeln!(out.sql_details, ");")?;
         }
     }
 
