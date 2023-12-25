@@ -13,13 +13,19 @@ pub struct FwdDiff<'a> {
     pub internal: bool,
     pub is_summary: bool,
     pub attr: &'a [u32],
+    pub details_id: Option<u32>,
 }
 
-pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
+pub fn process_diff(
+    mut handle_fwd_diff: impl FnMut(FwdDiff<'_>),
+    mut handle_details: impl FnMut(&str),
+) -> io::Result<()> {
     let mut src = DataTable::new();
     let mut dst = DataTable::new();
     let mut rem = HashMap::with_capacity(1024);
     let mut attr = Vec::new();
+
+    let mut details_counter = 0;
 
     for diff in files(DIFF_DIRECTORY) {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
@@ -36,12 +42,43 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
 
         let time = dst_year.parse().unwrap();
 
-        for_each_line_in(&diff, |line| {
-            let line = match parse_line(line) {
-                Ok(Some(line)) => line,
-                Ok(None) => return,
-                Err(_) => panic!("invalid line in `{file_stem}.diff`: {line}"),
+        let mut detailed = false;
+        let mut details = String::new();
+        let mut details_id = None;
+
+        for_each_line_in(&diff, |line_i, line| {
+            let Ok(line) = parse_line(line) else {
+                panic!("invalid line at {file_stem}.diff:{line_i}");
             };
+
+            let line = match line {
+                Line::Change(line) => {
+                    if !details.is_empty() {
+                        // Remove the last newline.
+                        handle_details(&details[..details.len() - 1]);
+                        details.clear();
+
+                        details_id = Some(details_counter);
+                        details_counter += 1;
+                    }
+                    line
+                }
+                Line::Comment(comment) => {
+                    if line_i == 0 && comment == " detailed #" {
+                        detailed = true;
+                    } else if detailed {
+                        details.push_str(comment.trim_start());
+                        details.push('\n');
+                    }
+                    return;
+                }
+                Line::Empty => {
+                    details.clear();
+                    details_id = None;
+                    return;
+                }
+            };
+
             let code = line.code;
             let name = line.name;
 
@@ -57,17 +94,17 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
                     src.name_by_code(code) == Some(name),
                     "{code}: invalid deletion",
                 );
-                if dst.name_by_code(code) == Some(name) {
-                    println!("{code}: same-name deletion");
-                }
+                // if dst.name_by_code(code) == Some(name) {
+                //     println!("{code}: same-name deletion");
+                // }
             } else {
                 assert!(
                     dst.name_by_code(code) == Some(name),
                     "{code}: invalid addition",
                 );
-                if src.name_by_code(code) == Some(name) {
-                    println!("{code}: same-name addition");
-                }
+                // if src.name_by_code(code) == Some(name) {
+                //     println!("{code}: same-name addition");
+                // }
             }
 
             let (table, origin) = if line.fwd { (&dst, &src) } else { (&src, &dst) };
@@ -79,21 +116,23 @@ pub fn for_each_fwd_diff(mut f: impl FnMut(FwdDiff<'_>)) -> io::Result<()> {
             let is_summary = origin.has_children(code);
 
             if line.fwd {
-                f(FwdDiff {
+                handle_fwd_diff(FwdDiff {
                     time,
                     code,
                     internal: line.internal,
                     is_summary,
                     attr: &attr[..],
+                    details_id,
                 })
             } else {
                 for &sel_code in &attr {
-                    f(FwdDiff {
+                    handle_fwd_diff(FwdDiff {
                         time,
                         code: sel_code,
                         internal: line.internal,
                         is_summary,
                         attr: &[code],
+                        details_id,
                     })
                 }
             }
@@ -139,7 +178,7 @@ fn select(
     table: &DataTable,
     origin: &DataTable,
     rem: &mut HashMap<i32, HashSet<i32>>,
-    line: &Line<'_>,
+    line: &ChangeLine<'_>,
     res: &mut Vec<u32>,
 ) {
     let code = line.code;
@@ -279,7 +318,7 @@ impl DataTable {
 }
 
 #[derive(Debug)]
-struct Line<'a> {
+struct ChangeLine<'a> {
     fwd: bool,
     internal: bool,
     code: u32,
@@ -287,18 +326,25 @@ struct Line<'a> {
     attr: Vec<Selector<'a>>,
 }
 
-fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
+#[derive(Debug)]
+enum Line<'a> {
+    Change(ChangeLine<'a>),
+    Comment(&'a str),
+    Empty,
+}
+
+fn parse_line(line: &str) -> Result<Line<'_>, ()> {
     if line.is_empty() {
-        return Ok(None);
+        return Ok(Line::Empty);
     }
 
     let mut fwd = false;
     let mut internal = false;
     match line.as_bytes()[0] {
         b'-' => fwd = true,
-        b'+' => (),
+        b'+' => {}
         b'=' => internal = true,
-        b'#' => return Ok(None),
+        b'#' => return Ok(Line::Comment(&line[1..])),
         _ => return Err(()),
     }
 
@@ -347,7 +393,7 @@ fn parse_line(line: &str) -> Result<Option<Line<'_>>, ()> {
         attr.push(sel);
     }
 
-    Ok(Some(Line {
+    Ok(Line::Change(ChangeLine {
         fwd,
         internal,
         code,

@@ -16,12 +16,14 @@ pub mod consts {
     pub const OUTPUT_JSON_PATH: &str = "codes.json";
     pub const OUTPUT_SQL_CODES_PATH: &str = "sql/codes.sql";
     pub const OUTPUT_SQL_CHANGES_PATH: &str = "sql/changes.sql";
+    pub const OUTPUT_SQL_DETAILS_PATH: &str = "sql/details.sql";
     pub const CSV_HEADER: &str =
         "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
     pub const SQL_CODES_HEADER: &str =
         "INSERT INTO `codes` (`code`, `name`, `start`, `end`) VALUES\n";
     pub const SQL_CHANGES_HEADER: &str =
         "INSERT INTO `changes` (`code`, `new_code`, `time`) VALUES\n";
+    pub const SQL_DETAILS_HEADER: &str = "BEGIN;\nINSERT INTO `details` (`text`) VALUES\n";
 }
 
 mod diff;
@@ -47,17 +49,20 @@ pub struct Successor {
     pub code: u32,
     #[serde(skip_serializing_if = "is_default")]
     pub is_summary: bool,
+    #[serde(skip_serializing)]
+    pub details_id: Option<u32>,
 }
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     *t == T::default()
 }
 
-pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Result<()> {
+pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(usize, &str)) -> Result<()> {
     let file = File::open(path)?;
     let mut br = BufReader::new(file);
     let mut buf = String::with_capacity(64);
 
+    let mut i = 0;
     while br.read_line(&mut buf)? != 0 {
         if buf.ends_with('\n') {
             buf.pop();
@@ -65,7 +70,8 @@ pub fn for_each_line_in(path: impl AsRef<Path>, mut f: impl FnMut(&str)) -> Resu
                 buf.pop();
             }
         }
-        f(&buf);
+        f(i, &buf);
+        i += 1;
         buf.clear();
     }
     Ok(())
@@ -82,11 +88,11 @@ pub fn files(path: &str) -> impl Iterator<Item = PathBuf> {
 
 pub fn read_data(path: &impl AsRef<Path>, mut f: impl FnMut(u32, String)) -> Result<()> {
     let file_name = path.as_ref().file_name().unwrap().to_str().unwrap();
-    for_each_line_in(path, |line| {
+    for_each_line_in(path, |line_i, line| {
         let code = line
             .get(0..6)
             .and_then(|s| s.parse().ok())
-            .unwrap_or_else(|| panic!("invalid line in `{file_name}`: {line}"));
+            .unwrap_or_else(|| panic!("invalid line at {file_name}:{line_i}"));
         assert_eq!(line.as_bytes()[6], b'\t');
         f(code, line[7..].into());
     })

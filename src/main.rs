@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry::*, BTreeSet, HashMap},
+    collections::{hash_map::Entry::*, BTreeMap, BTreeSet, HashMap},
     fs::File,
     io::{BufWriter, Result, Seek, Write},
     time::Instant,
@@ -38,9 +38,9 @@ fn main() -> Result<()> {
             match all_map.entry(code) {
                 Occupied(e) => {
                     let area = e.into_mut();
-                    let last = area.entries.last_mut().unwrap();
-                    if last.name.as_ref() != Some(name) || last.parent_name.as_ref() != parent_name
-                    {
+                    let last: &mut Entry = area.entries.last_mut().unwrap();
+                    let parent_name_changed = last.parent_name.as_ref() != parent_name;
+                    if last.name.as_ref() != Some(name) || parent_name_changed {
                         area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
@@ -54,17 +54,29 @@ fn main() -> Result<()> {
         println!("Processed: {file_stem}");
     }
 
-    insert_diff(&mut all_map)?;
+    let details = insert_diff(&mut all_map)?;
 
     let mut out = Output {
         csv: BufWriter::new(File::create(OUTPUT_CSV_PATH)?),
         json: JsonEntry::default(),
         sql_codes: BufWriter::new(File::create(OUTPUT_SQL_CODES_PATH)?),
         sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
+        sql_details: BufWriter::new(File::create(OUTPUT_SQL_DETAILS_PATH)?),
     };
     write!(out.csv, "{CSV_HEADER}")?;
     write!(out.sql_codes, "{SQL_CODES_HEADER}")?;
     write!(out.sql_changes, "{SQL_CHANGES_HEADER}")?;
+    write!(out.sql_details, "{SQL_DETAILS_HEADER}")?;
+
+    for (i, text) in details.iter().enumerate() {
+        if i != 0 {
+            writeln!(out.sql_details, ",")?;
+        }
+        write!(out.sql_details, "('{text}')")?;
+    }
+    writeln!(out.sql_details, ";\nSET @id = LAST_INSERT_ID();\n")?;
+
+    let mut details_map = BTreeMap::new();
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -88,6 +100,7 @@ fn main() -> Result<()> {
                 end,
                 i == last,
                 &entry.attr,
+                &mut details_map,
             )?;
         }
     }
@@ -95,45 +108,59 @@ fn main() -> Result<()> {
     let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
     serde_json::to_writer(bw, &out.json.children).expect("failed to write JSON data");
 
+    for (id, rows) in details_map.into_iter() {
+        for (i, (code, new_code, time)) in rows.into_iter().enumerate() {
+            writeln!(
+                out.sql_details,
+                "UPDATE `changes` SET `details_id` = {} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
+                if id != 0 && i == 0 { "@id := @id + 1" } else { "@id" }
+            )?;
+        }
+    }
+
     writeln!(out.sql_codes, ";")?;
     writeln!(out.sql_changes, ";")?;
+    writeln!(out.sql_details, "COMMIT;")?;
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
 }
 
-fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<()> {
-    for_each_fwd_diff(|fd| {
-        if fd.code == 0 {
-            return;
-        }
-        let area = map.get_mut(&fd.code).unwrap();
-        let entry = area
-            .entries
-            .iter_mut()
-            .rev()
-            .find(|e| e.time < fd.time)
-            .unwrap();
-        entry.attr.extend(fd.attr.iter().map(|&code| Successor {
-            time: fd.time,
-            code,
-            is_summary: fd.is_summary,
-        }));
-    })?;
-    for (&code, area) in map.iter_mut() {
+fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
+    let mut details = vec![];
+    process_diff(
+        |fd| {
+            if fd.code == 0 {
+                return;
+            }
+            let area = map.get_mut(&fd.code).unwrap();
+            let entry = area
+                .entries
+                .iter_mut()
+                .rev()
+                .find(|e| e.time < fd.time)
+                .unwrap();
+            entry.attr.extend(fd.attr.iter().map(|&code| Successor {
+                time: fd.time,
+                code,
+                is_summary: fd.is_summary,
+                details_id: fd.details_id,
+            }));
+        },
+        |text| details.push(text.into()),
+    )?;
+
+    for area in map.values() {
         for i in 0..area.entries.len() - 1 {
-            let next_time = area.entries[i + 1].time;
-            let entry = &mut area.entries[i];
-            if entry.attr.iter().rev().next().map(|su| su.time) != Some(next_time) {
-                entry.attr.insert(Successor {
-                    is_summary: false,
-                    time: next_time,
-                    code,
-                });
+            let end = area.entries[i + 1].time;
+            let entry = &area.entries[i];
+            if entry.name.is_some() && entry.attr.iter().rev().next().map(|su| su.time) != Some(end)
+            {
+                panic!("parent name changed with no corresponding diff");
             }
         }
     }
-    Ok(())
+    Ok(details)
 }
 
 fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
@@ -152,6 +179,7 @@ struct Output<'a> {
     json: JsonEntry<'a>,
     sql_codes: BufWriter<File>,
     sql_changes: BufWriter<File>,
+    sql_details: BufWriter<File>,
 }
 
 fn write_entry<'a>(
@@ -163,6 +191,7 @@ fn write_entry<'a>(
     end: Option<u32>,
     is_last: bool,
     attr: &BTreeSet<Successor>,
+    details_map: &mut BTreeMap<u32, Vec<(u32, u32, u32)>>,
 ) -> Result<()> {
     let mut entry = &mut out.json;
     let level = Level::from_code(code);
@@ -266,6 +295,12 @@ fn write_entry<'a>(
             writeln!(out.sql_changes, ",")?;
         }
 
+        if let Some(id) = su.details_id {
+            details_map
+                .entry(id)
+                .or_default()
+                .push((code, su.code, su.time));
+        }
         write!(out.sql_changes, "({code}, {}, {})", su.code, su.time)
     })?;
 
