@@ -30,7 +30,13 @@ mod diff;
 pub use diff::*;
 
 #[derive(serde::Serialize, Default)]
-pub struct JsonEntry<'a> {
+pub struct JsonOutput<'a> {
+    pub items: Vec<CodeItem<'a>>,
+    pub details: Vec<String>,
+}
+
+#[derive(serde::Serialize, Default)]
+pub struct CodeItem<'a> {
     pub code: u32,
     pub name: &'a str,
     pub start: u32,
@@ -39,7 +45,7 @@ pub struct JsonEntry<'a> {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub successors: Vec<Successor>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub children: Vec<JsonEntry<'a>>,
+    pub children: Vec<CodeItem<'a>>,
 }
 
 #[derive(serde::Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -49,7 +55,7 @@ pub struct Successor {
     pub code: u32,
     #[serde(skip_serializing_if = "is_default")]
     pub is_summary: bool,
-    #[serde(skip_serializing)]
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub details_id: Option<u32>,
 }
 

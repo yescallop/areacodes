@@ -2,7 +2,7 @@
 import { inject } from 'vue';
 import { type Item, scrollToItem, Action } from '@/common';
 
-defineProps<{ item: Item; }>();
+defineProps<{ item: Item; details?: string; }>();
 
 const srcItem = inject<Item>('srcItem')!;
 
@@ -15,7 +15,7 @@ function onKeyDown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <a :href="`#${item.code}:${item.start}`" @click.prevent="scrollToItem(item)" @keydown="onKeyDown">
+  <a :href="`#${item.code}:${item.start}`" :title="details" @click.prevent="scrollToItem(item)" @keydown="onKeyDown">
     <ruby v-if="item.name != srcItem.name">{{ item.code }}<rt>{{
       item.name
     }}</rt></ruby>

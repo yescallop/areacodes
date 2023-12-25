@@ -12,6 +12,11 @@ export interface GlobalProps {
   resolveLink: (code: number, time: number, rev: boolean) => Item,
 }
 
+export interface CodesJson {
+  items: Item[],
+  details: string[],
+}
+
 export interface Item {
   code: number,
   name: string,
@@ -42,10 +47,15 @@ export enum Action {
 export interface Link {
   time?: number,
   code: number,
+  id?: number,
+  details?: string,
 }
 
-export interface LinkZipped {
-  codes: number[],
+export interface LinkZip {
+  codes: {
+    code: number,
+    details?: string,
+  }[],
   time: number,
   rev: boolean,
 }

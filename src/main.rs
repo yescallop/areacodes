@@ -54,11 +54,12 @@ fn main() -> Result<()> {
         println!("Processed: {file_stem}");
     }
 
-    let details = insert_diff(&mut all_map)?;
-
     let mut out = Output {
         csv: BufWriter::new(File::create(OUTPUT_CSV_PATH)?),
-        json: JsonEntry::default(),
+        json: JsonOutput {
+            items: vec![],
+            details: insert_diff(&mut all_map)?,
+        },
         sql_codes: BufWriter::new(File::create(OUTPUT_SQL_CODES_PATH)?),
         sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
         sql_details: BufWriter::new(File::create(OUTPUT_SQL_DETAILS_PATH)?),
@@ -68,7 +69,7 @@ fn main() -> Result<()> {
     write!(out.sql_changes, "{SQL_CHANGES_HEADER}")?;
     write!(out.sql_details, "{SQL_DETAILS_HEADER}")?;
 
-    for (i, text) in details.iter().enumerate() {
+    for (i, text) in out.json.details.iter().enumerate() {
         if i != 0 {
             writeln!(out.sql_details, ",")?;
         }
@@ -106,7 +107,7 @@ fn main() -> Result<()> {
     }
 
     let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
-    serde_json::to_writer(bw, &out.json.children).expect("failed to write JSON data");
+    serde_json::to_writer(bw, &out.json).expect("failed to write JSON data");
 
     for (id, rows) in details_map.into_iter() {
         if rows.len() == 1 {
@@ -192,7 +193,7 @@ fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
 
 struct Output<'a> {
     csv: BufWriter<File>,
-    json: JsonEntry<'a>,
+    json: JsonOutput<'a>,
     sql_codes: BufWriter<File>,
     sql_changes: BufWriter<File>,
     sql_details: BufWriter<File>,
@@ -209,7 +210,7 @@ fn write_entry<'a>(
     attr: &BTreeSet<Successor>,
     details_map: &mut BTreeMap<u32, Vec<(u32, u32, u32)>>,
 ) -> Result<()> {
-    let mut entry = &mut out.json;
+    let mut items = &mut out.json.items;
     let level = Level::from_code(code);
 
     let prov_code = code / 10000 * 10000;
@@ -217,11 +218,11 @@ fn write_entry<'a>(
     let pref_name = if level == Level::Province {
         ""
     } else {
-        entry = entry
-            .children
+        items = &mut items
             .iter_mut()
             .find(|e| e.code == prov_code)
-            .unwrap();
+            .unwrap()
+            .children;
         if level == Level::Prefecture {
             name
         } else {
@@ -231,11 +232,11 @@ fn write_entry<'a>(
                 .and_then(|code| map.get(&code))
                 .and_then(|area| area.last_name_intersecting(start, end));
             if let Some(name) = pref_name {
-                entry = entry
-                    .children
+                items = &mut items
                     .iter_mut()
                     .find(|e| e.code == pref_code && e.start <= start)
-                    .unwrap();
+                    .unwrap()
+                    .children;
                 name
             } else {
                 "直辖"
@@ -243,7 +244,7 @@ fn write_entry<'a>(
         }
     };
 
-    entry.children.push(JsonEntry {
+    items.push(CodeItem {
         code,
         name,
         start,

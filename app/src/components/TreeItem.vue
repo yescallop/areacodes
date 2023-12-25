@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
-import type { GlobalProps, Item, LinkZipped } from '@/common';
+import type { GlobalProps, Item, LinkZip } from '@/common';
 import { timeOrDefault, Action } from '@/common';
 import Links from './Links.vue';
 
@@ -16,7 +16,7 @@ const isHidden = computed(() => {
   let res = gProps.searchResult.value;
   return res != undefined && !res.has(toRaw(props.item));
 });
-const links = computed(() => zipLinks(getLinks()));
+const linkZips = computed(() => zipLinks(getLinks()));
 const headLink = ref<HTMLElement>();
 
 if (props.item.code == 0) {
@@ -66,6 +66,7 @@ function act() {
 interface LinkWithDirection {
   code: number,
   time: number,
+  details?: string,
   rev: boolean,
 }
 
@@ -77,7 +78,7 @@ function getLinks(): LinkWithDirection[] {
     links = predecessors.filter(link => {
       return link.time! >= item.start && (item.end == undefined || link.time! < item.end);
     }).map(link => {
-      return { code: link.code, time: link.time!, rev: true };
+      return { code: link.code, time: link.time!, details: link.details, rev: true };
     });
   } else {
     links = [];
@@ -88,6 +89,7 @@ function getLinks(): LinkWithDirection[] {
       links.push({
         code: link.code,
         time: timeOrDefault(link, item),
+        details: link.details,
         rev: false,
       });
     });
@@ -100,19 +102,19 @@ function getLinks(): LinkWithDirection[] {
   return links;
 }
 
-function zipLinks(links: LinkWithDirection[]): LinkZipped[] {
+function zipLinks(links: LinkWithDirection[]): LinkZip[] {
   if (links.length == 0) {
     return [];
   }
-  let out = [];
-  let codes = [links[0].code];
+  let out: LinkZip[] = [];
+  let codes = [{ code: links[0].code, details: links[0].details }];
   let last = links[0];
   links.slice(1).forEach(link => {
     if (link.time == last.time && link.rev == last.rev) {
-      codes.push(link.code);
+      codes.push({ code: link.code, details: link.details });
     } else {
       out.push({ codes, time: last.time, rev: last.rev });
-      codes = [link.code];
+      codes = [{ code: link.code, details: link.details }];
       last = link;
     }
   });
@@ -153,7 +155,7 @@ function onKeyDown(e: KeyboardEvent) {
         item.name.substring(gProps.options.searchText.length)
       }}</template>
     </div>
-    <Links :links="links" />
+    <Links :link-zips="linkZips" />
     <ul v-if="isOpen">
       <TreeItem v-for="child in item.children" :item="child" />
     </ul>

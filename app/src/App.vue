@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, provide, reactive, ref, watch } from 'vue';
-import type { GlobalProps, Item, Link } from './common';
+import type { CodesJson, GlobalProps, Item, Link } from './common';
 import { timeOrDefault, scrollToItem, Action } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
-const codes = ref<Item[]>([{
+const itemArr = ref<Item[]>([{
   code: 233333,
   name: "加载中...",
   start: new Date().getFullYear(),
@@ -38,7 +38,7 @@ const guide: Item = {
           code: 4,
           name: "向右的箭头表明代码的后继",
           start: 1980,
-          successors: [{ code: 5, time: 1990 }]
+          successors: [{ code: 5, time: 1990, details: "这是一条变更详情" }]
         },
         {
           code: 5,
@@ -161,7 +161,7 @@ function addPredecessors(item: Item, before: number, res: Set<Item>) {
 
 watch(searchResult, res => {
   if (res == undefined) {
-    codes.value.forEach(item => {
+    itemArr.value.forEach(item => {
       item.action = Action.Close;
       if (item.act != undefined) item.act();
     });
@@ -175,18 +175,18 @@ watch(searchResult, res => {
 const props: GlobalProps = { options, items, predecessors, searchResult, resolveLink };
 provide('props', props);
 
-insertItem(guide);
+insertItem(guide, []);
 
 fetch(codesUrl)
   .then(resp => resp.json())
-  .then((arr: Item[]) => {
-    arr.forEach(item => insertItem(item));
+  .then((resp: CodesJson) => {
+    resp.items.forEach(item => insertItem(item, resp.details));
     createIndexArr();
     scrollToHash();
-    codes.value = arr;
+    itemArr.value = resp.items;
   });
 
-function insertItem(item: Item, parent?: Item) {
+function insertItem(item: Item, details: string[], parent?: Item) {
   let arr = items.get(item.code);
   if (arr == undefined) {
     arr = [];
@@ -202,14 +202,18 @@ function insertItem(item: Item, parent?: Item) {
   arr.push(item);
 
   item.successors?.forEach(link => {
+    if (link.id != undefined) {
+      link.details = details[link.id];
+      link.id = undefined;
+    }
     let links = predecessors.get(link.code);
     if (links == undefined) {
       links = [];
       predecessors.set(link.code, links);
     }
-    links.push({ time: timeOrDefault(link, item), code: item.code });
+    links.push({ time: timeOrDefault(link, item), code: item.code, details: link.details });
   });
-  item.children?.forEach(child => insertItem(child, item));
+  item.children?.forEach(child => insertItem(child, details, item));
   item.parent = parent;
 }
 
@@ -283,7 +287,7 @@ function locateHash(): Item | undefined {
   <main>
     <label>搜索：<input type="search" v-model="options.searchText" /></label>
     <ul class="top">
-      <TreeItem v-for="child in codes" :item="child" />
+      <TreeItem v-for="it in itemArr" :item="it" />
     </ul>
   </main>
 </template>
