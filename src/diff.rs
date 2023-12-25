@@ -64,7 +64,7 @@ pub fn process_diff(
                     line
                 }
                 Line::Comment(comment) => {
-                    if line_i == 0 && comment == " detailed #" {
+                    if comment == "![detailed]" {
                         detailed = true;
                     } else if detailed {
                         details.push_str(comment.trim_start());
