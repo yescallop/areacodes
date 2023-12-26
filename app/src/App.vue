@@ -165,6 +165,11 @@ watch(searchResult, res => {
       item.action = Action.Close;
       if (item.act != undefined) item.act();
     });
+
+    if (itemToScrollTo != undefined) {
+      scrollToItem(itemToScrollTo);
+      itemToScrollTo = undefined;
+    }
   } else {
     res.forEach(item => {
       if (item.act != undefined) item.act();
@@ -246,10 +251,18 @@ function binarySearch<T>(arr: T[], f: (t: T) => number): number {
 
 window.onhashchange = scrollToHash;
 
+let itemToScrollTo: Item | undefined = undefined;
+
 function scrollToHash() {
-  options.searchText = "";
   let item = locateHash();
-  if (item != undefined) scrollToItem(item);
+  if (item == undefined) return;
+
+  if (options.searchText == "") {
+    scrollToItem(item);
+  } else {
+    itemToScrollTo = item;
+    options.searchText = "";
+  }
 }
 
 function locateHash(): Item | undefined {
