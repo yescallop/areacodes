@@ -150,10 +150,12 @@ function onKeyDown(e: KeyboardEvent) {
         item.code
       }}</a>
       &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
-      <template v-if="!item.name.startsWith(gProps.options.searchText)">{{ item.name }}</template>
-      <template v-else><span class="hit">{{ gProps.options.searchText }}</span>{{
-        item.name.substring(gProps.options.searchText.length)
-      }}</template>
+      <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
+        <span class="hit">{{ gProps.options.searchText }}</span>{{
+          item.name.substring(gProps.options.searchText.length)
+        }}
+      </template>
+      <template v-else>{{ item.name }}</template>
     </div>
     <Links :link-zips="linkZips" />
     <ul v-if="isOpen">
