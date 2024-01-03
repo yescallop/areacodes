@@ -82,6 +82,8 @@ pub fn process_diff(
             let code = line.code;
             let name = line.name;
 
+            assert!(!detailed || details_id.is_some(), "{code}: no details");
+
             if line.internal {
                 let src_name = src.name_by_code(code);
                 let dst_name = dst.name_by_code(code);
