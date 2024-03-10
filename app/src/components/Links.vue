@@ -13,7 +13,7 @@ const filteredLinkZips = computed(() => {
     let items = linkZip.codes
       .map(it => {
         let item = gProps.resolveLink(it.code, linkZip.time, linkZip.rev);
-        return { item, details: it.details };
+        return { item, desc: it.desc };
       }).filter(it => {
         if (it.item.code < 100000) return true;
         let res = gProps.searchResult.value;
@@ -31,7 +31,7 @@ const filteredLinkZips = computed(() => {
       {{ linkZip.rev ? "<=" : "=>" }}
       <template v-for="(it, index) in linkZip.items">
         <template v-if="index != 0">,</template>
-        <Link :item="it.item" :details="it.details" />
+        <Link :item="it.item" :desc="it.desc" />
       </template>
       &lt;{{ linkZip.time }}&gt;
     </li>

@@ -38,7 +38,7 @@ const guide: Item = {
           code: 4,
           name: "向右的箭头表明代码的后继",
           start: 1980,
-          successors: [{ code: 5, time: 1990, details: "这是一条变更详情" }]
+          successors: [{ code: 5, time: 1990, desc: "这是一条变更描述" }]
         },
         {
           code: 5,
@@ -185,13 +185,13 @@ insertItem(guide, []);
 fetch(codesUrl)
   .then(resp => resp.json())
   .then((resp: CodesJson) => {
-    resp.items.forEach(item => insertItem(item, resp.details));
+    resp.items.forEach(item => insertItem(item, resp.descriptions));
     createIndexArr();
     scrollToHash();
     itemArr.value = resp.items;
   });
 
-function insertItem(item: Item, details: string[], parent?: Item) {
+function insertItem(item: Item, descriptions: string[], parent?: Item) {
   let arr = items.get(item.code);
   if (arr == undefined) {
     arr = [];
@@ -207,18 +207,18 @@ function insertItem(item: Item, details: string[], parent?: Item) {
   arr.push(item);
 
   item.successors?.forEach(link => {
-    if (link.id != undefined) {
-      link.details = details[link.id];
-      link.id = undefined;
+    if (link.desc_id != undefined) {
+      link.desc = descriptions[link.desc_id];
+      link.desc_id = undefined;
     }
     let links = predecessors.get(link.code);
     if (links == undefined) {
       links = [];
       predecessors.set(link.code, links);
     }
-    links.push({ time: timeOrDefault(link, item), code: item.code, details: link.details });
+    links.push({ time: timeOrDefault(link, item), code: item.code, desc: link.desc });
   });
-  item.children?.forEach(child => insertItem(child, details, item));
+  item.children?.forEach(child => insertItem(child, descriptions, item));
   item.parent = parent;
 }
 

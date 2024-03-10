@@ -14,7 +14,7 @@ export interface GlobalProps {
 
 export interface CodesJson {
   items: Item[],
-  details: string[],
+  descriptions: string[],
 }
 
 export interface Item {
@@ -47,14 +47,14 @@ export enum Action {
 export interface Link {
   time?: number,
   code: number,
-  id?: number,
-  details?: string,
+  desc_id?: number,
+  desc?: string,
 }
 
 export interface LinkZip {
   codes: {
     code: number,
-    details?: string,
+    desc?: string,
   }[],
   time: number,
   rev: boolean,

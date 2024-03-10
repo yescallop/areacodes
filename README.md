@@ -10,8 +10,10 @@
 
 | 数据集名称 | 规范 | 目录 | 汇总 | 进度 |
 | - | - | - | - | - |
-| 历史行政区划代码 | 无 | [data](data) | [SQL](sql) \| [JSON] \| [CSV] | 100% |
-| 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 同上 | 100% |
+| 历史行政区划代码 | 无 | [data](data) | [SQL](sql) \| [JSON] \| [CSV] | 已完成 |
+| 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 同上 | 基本完成* |
+
+\* 代码变更的文本描述收集工作现已开始，欢迎各位参与，详情请见 Issue #TODO。
 
 ## CSV 汇总表说明
 
@@ -26,19 +28,20 @@
     注：“新代码”中代码以字符 `;` 分隔。若一代码后接包含年份的方括号（如 `[2010]`），说明其对应的行政区域变更发生在指定的年份，否则默认为“变更（弃用）时间”。
 - 查询一条记录对应的最新代码的方法是，以该记录为根节点，按“新代码”字段展开树节点，直至所有叶节点的“新代码”字段均为空且状态均为“启用”为止。
 - 在行政区划合并后又拆分的情况（或其他类似情况）下，按上述方法或不能精确查询一条记录对应的最新代码。后续可通过扩展语法解决此问题。
-- 本汇总表适用 [CC0] 许可协议，仅供参考之用，不建议用于其他用途。
+- 本汇总表适用 [CC0-1.0] 许可协议，仅供参考之用，不建议用于其他用途。
 
 ## 原始数据来源
 
-- [中华人民共和国县级以上行政区划代码][1]，民政部
-- [县级以上行政区划变更情况][2]，民政部
-- [中华人民共和国行政区划沿革][3]，中国政府网
-- [全国行政区划信息查询平台][4]，民政部
+- [中华人民共和国县级以上行政区划代码][1]，民政部。
+- [县级以上行政区划变更情况][2]，民政部。
+- [中华人民共和国行政区划沿革][3]，中国政府网。
+- [全国行政区划信息查询平台][4]，民政部。
+- [原始数据勘误](errata.md)，本项目。
 
 [preview]: https://yescallop.cn/areacodes/
 [CSV]: https://raw.githubusercontent.com/yescallop/areacodes/master/result.csv
 [JSON]: https://raw.githubusercontent.com/yescallop/areacodes/master/codes.json
-[CC0]: https://creativecommons.org/publicdomain/zero/1.0/deed.zh
+[CC0-1.0]: https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans
 [1]: https://www.mca.gov.cn/n156/n186/index.html
 [2]: http://xzqh.mca.gov.cn/description?dcpid=1
 [3]: http://www.gov.cn/test/2006-02/27/content_212020.htm

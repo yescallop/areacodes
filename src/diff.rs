@@ -13,19 +13,19 @@ pub struct FwdDiff<'a> {
     pub internal: bool,
     pub is_summary: bool,
     pub attr: &'a [u32],
-    pub details_id: Option<u32>,
+    pub desc_id: Option<u32>,
 }
 
 pub fn process_diff(
     mut handle_fwd_diff: impl FnMut(FwdDiff<'_>),
-    mut handle_details: impl FnMut(&str),
+    mut handle_descriptions: impl FnMut(&str),
 ) -> io::Result<()> {
     let mut src = DataTable::new();
     let mut dst = DataTable::new();
     let mut rem = HashMap::with_capacity(1024);
     let mut attr = Vec::new();
 
-    let mut details_counter = 0;
+    let mut desc_counter = 0;
 
     for diff in files(DIFF_DIRECTORY) {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
@@ -42,9 +42,9 @@ pub fn process_diff(
 
         let time = dst_year.parse().unwrap();
 
-        let mut detailed = false;
-        let mut details = String::new();
-        let mut details_id = None;
+        let mut described = false;
+        let mut desc = String::new();
+        let mut desc_id = None;
 
         for_each_line_in(&diff, |line_i, line| {
             let Ok(line) = parse_line(line) else {
@@ -53,28 +53,28 @@ pub fn process_diff(
 
             let line = match line {
                 Line::Change(line) => {
-                    if !details.is_empty() {
+                    if !desc.is_empty() {
                         // Remove the last newline.
-                        handle_details(&details[..details.len() - 1]);
-                        details.clear();
+                        handle_descriptions(&desc[..desc.len() - 1]);
+                        desc.clear();
 
-                        details_id = Some(details_counter);
-                        details_counter += 1;
+                        desc_id = Some(desc_counter);
+                        desc_counter += 1;
                     }
                     line
                 }
                 Line::Comment(comment) => {
-                    if comment == "![detailed]" {
-                        detailed = true;
-                    } else if detailed {
-                        details.push_str(comment.trim_start());
-                        details.push('\n');
+                    if comment == "![described]" {
+                        described = true;
+                    } else if described {
+                        desc.push_str(comment.trim_start());
+                        desc.push('\n');
                     }
                     return;
                 }
                 Line::Empty => {
-                    details.clear();
-                    details_id = None;
+                    desc.clear();
+                    desc_id = None;
                     return;
                 }
             };
@@ -82,7 +82,7 @@ pub fn process_diff(
             let code = line.code;
             let name = line.name;
 
-            assert!(!detailed || details_id.is_some(), "{code}: no details");
+            assert!(!described || desc_id.is_some(), "{code}: no description");
 
             if line.internal {
                 let src_name = src.name_by_code(code);
@@ -124,7 +124,7 @@ pub fn process_diff(
                     internal: line.internal,
                     is_summary,
                     attr: &attr[..],
-                    details_id,
+                    desc_id,
                 })
             } else {
                 for &sel_code in &attr {
@@ -134,7 +134,7 @@ pub fn process_diff(
                         internal: line.internal,
                         is_summary,
                         attr: &[code],
-                        details_id,
+                        desc_id,
                     })
                 }
             }

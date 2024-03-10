@@ -1,5 +1,5 @@
 BEGIN;
-INSERT INTO `details` (`text`) VALUES
+INSERT INTO `descriptions` (`text`) VALUES
 ('# 黑龙江省民政厅关于同意七台河市设立兴北镇由新兴区划归茄子河区管辖的批复（黑民行批〔2022〕7号）
 
 同意新兴区设立兴北镇，隶属关系由新兴区划归茄子河区管辖。镇人民政府驻北兴农场四委108栋362号。兴北镇的行政区划代码为230904102。
@@ -116,16 +116,16 @@ INSERT INTO `details` (`text`) VALUES
 来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202301/8bd4c6578fae4c469680d068c187c7b0.shtml)');
 SET @id = LAST_INSERT_ID();
 
-UPDATE `changes` SET `details_id` = @id WHERE (`code`, `new_code`, `time`) = (230902, 230904, 2022);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (360112, 360113, 2022);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (410223, 410184, 2022);
+UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) = (230902, 230904, 2022);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (360112, 360113, 2022);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (410223, 410184, 2022);
 SET @id = @id + 1;
-UPDATE `changes` SET `details_id` = @id WHERE (`code`, `new_code`, `time`) IN ((620122, 620102, 2022), (620122, 620105, 2022));
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (640122, 640106, 2022);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (511525, 511526, 2023);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (530602, 530624, 2023);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540422, 540481, 2023);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540530, 540581, 2023);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (620121, 620122, 2023);
-UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (650000, 659012, 2023);
+UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((620122, 620102, 2022), (620122, 620105, 2022));
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (640122, 640106, 2022);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (511525, 511526, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (530602, 530624, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540422, 540481, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540530, 540581, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (620121, 620122, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (650000, 659012, 2023);
 COMMIT;

@@ -16,14 +16,15 @@ pub mod consts {
     pub const OUTPUT_JSON_PATH: &str = "codes.json";
     pub const OUTPUT_SQL_CODES_PATH: &str = "sql/codes.sql";
     pub const OUTPUT_SQL_CHANGES_PATH: &str = "sql/changes.sql";
-    pub const OUTPUT_SQL_DETAILS_PATH: &str = "sql/details.sql";
+    pub const OUTPUT_SQL_DESCRIPTIONS_PATH: &str = "sql/descriptions.sql";
     pub const CSV_HEADER: &str =
         "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
     pub const SQL_CODES_HEADER: &str =
         "INSERT INTO `codes` (`code`, `name`, `start`, `end`) VALUES\n";
     pub const SQL_CHANGES_HEADER: &str =
         "INSERT INTO `changes` (`code`, `new_code`, `time`) VALUES\n";
-    pub const SQL_DETAILS_HEADER: &str = "BEGIN;\nINSERT INTO `details` (`text`) VALUES\n";
+    pub const SQL_DESCRIPTIONS_HEADER: &str =
+        "BEGIN;\nINSERT INTO `descriptions` (`text`) VALUES\n";
 }
 
 mod diff;
@@ -32,7 +33,7 @@ pub use diff::*;
 #[derive(serde::Serialize, Default)]
 pub struct JsonOutput<'a> {
     pub items: Vec<CodeItem<'a>>,
-    pub details: Vec<String>,
+    pub descriptions: Vec<String>,
 }
 
 #[derive(serde::Serialize, Default)]
@@ -55,8 +56,8 @@ pub struct Successor {
     pub code: u32,
     #[serde(skip_serializing_if = "is_default")]
     pub is_summary: bool,
-    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
-    pub details_id: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub desc_id: Option<u32>,
 }
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {

@@ -58,26 +58,26 @@ fn main() -> Result<()> {
         csv: BufWriter::new(File::create(OUTPUT_CSV_PATH)?),
         json: JsonOutput {
             items: vec![],
-            details: insert_diff(&mut all_map)?,
+            descriptions: insert_diff(&mut all_map)?,
         },
         sql_codes: BufWriter::new(File::create(OUTPUT_SQL_CODES_PATH)?),
         sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
-        sql_details: BufWriter::new(File::create(OUTPUT_SQL_DETAILS_PATH)?),
+        sql_descriptions: BufWriter::new(File::create(OUTPUT_SQL_DESCRIPTIONS_PATH)?),
     };
     write!(out.csv, "{CSV_HEADER}")?;
     write!(out.sql_codes, "{SQL_CODES_HEADER}")?;
     write!(out.sql_changes, "{SQL_CHANGES_HEADER}")?;
-    write!(out.sql_details, "{SQL_DETAILS_HEADER}")?;
+    write!(out.sql_descriptions, "{SQL_DESCRIPTIONS_HEADER}")?;
 
-    for (i, text) in out.json.details.iter().enumerate() {
+    for (i, text) in out.json.descriptions.iter().enumerate() {
         if i != 0 {
-            writeln!(out.sql_details, ",")?;
+            writeln!(out.sql_descriptions, ",")?;
         }
-        write!(out.sql_details, "('{text}')")?;
+        write!(out.sql_descriptions, "('{text}')")?;
     }
-    writeln!(out.sql_details, ";\nSET @id = LAST_INSERT_ID();\n")?;
+    writeln!(out.sql_descriptions, ";\nSET @id = LAST_INSERT_ID();\n")?;
 
-    let mut details_map = BTreeMap::new();
+    let mut desc_map = BTreeMap::new();
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -101,7 +101,7 @@ fn main() -> Result<()> {
                 end,
                 i == last,
                 &entry.attr,
-                &mut details_map,
+                &mut desc_map,
             )?;
         }
     }
@@ -109,42 +109,42 @@ fn main() -> Result<()> {
     let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
     serde_json::to_writer(bw, &out.json).expect("failed to write JSON data");
 
-    for (id, rows) in details_map.into_iter() {
+    for (id, rows) in desc_map.into_iter() {
         if rows.len() == 1 {
             let id = if id == 0 { "@id" } else { "@id := @id + 1" };
             let (code, new_code, time) = rows[0];
             writeln!(
-                out.sql_details,
-                "UPDATE `changes` SET `details_id` = {id} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
+                out.sql_descriptions,
+                "UPDATE `changes` SET `desc_id` = {id} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
             )?;
         } else {
             if id != 0 {
-                writeln!(out.sql_details, "SET @id = @id + 1;")?;
+                writeln!(out.sql_descriptions, "SET @id = @id + 1;")?;
             }
             write!(
-                out.sql_details,
-                "UPDATE `changes` SET `details_id` = @id WHERE (`code`, `new_code`, `time`) IN (",
+                out.sql_descriptions,
+                "UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN (",
             )?;
             for (i, (code, new_code, time)) in rows.into_iter().enumerate() {
                 if i != 0 {
-                    write!(out.sql_details, ", ")?;
+                    write!(out.sql_descriptions, ", ")?;
                 }
-                write!(out.sql_details, "({code}, {new_code}, {time})")?;
+                write!(out.sql_descriptions, "({code}, {new_code}, {time})")?;
             }
-            writeln!(out.sql_details, ");")?;
+            writeln!(out.sql_descriptions, ");")?;
         }
     }
 
     writeln!(out.sql_codes, ";")?;
     writeln!(out.sql_changes, ";")?;
-    writeln!(out.sql_details, "COMMIT;")?;
+    writeln!(out.sql_descriptions, "COMMIT;")?;
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
 }
 
 fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
-    let mut details = vec![];
+    let mut descriptions = vec![];
     process_diff(
         |fd| {
             if fd.code == 0 {
@@ -161,10 +161,10 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
                 time: fd.time,
                 code,
                 is_summary: fd.is_summary,
-                details_id: fd.details_id,
+                desc_id: fd.desc_id,
             }));
         },
-        |text| details.push(text.into()),
+        |text| descriptions.push(text.into()),
     )?;
 
     for area in map.values() {
@@ -177,7 +177,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
             }
         }
     }
-    Ok(details)
+    Ok(descriptions)
 }
 
 fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
@@ -196,7 +196,7 @@ struct Output<'a> {
     json: JsonOutput<'a>,
     sql_codes: BufWriter<File>,
     sql_changes: BufWriter<File>,
-    sql_details: BufWriter<File>,
+    sql_descriptions: BufWriter<File>,
 }
 
 fn write_entry<'a>(
@@ -208,7 +208,7 @@ fn write_entry<'a>(
     end: Option<u32>,
     is_last: bool,
     attr: &BTreeSet<Successor>,
-    details_map: &mut BTreeMap<u32, Vec<(u32, u32, u32)>>,
+    desc_map: &mut BTreeMap<u32, Vec<(u32, u32, u32)>>,
 ) -> Result<()> {
     let mut items = &mut out.json.items;
     let level = Level::from_code(code);
@@ -312,8 +312,8 @@ fn write_entry<'a>(
             writeln!(out.sql_changes, ",")?;
         }
 
-        if let Some(id) = su.details_id {
-            details_map
+        if let Some(id) = su.desc_id {
+            desc_map
                 .entry(id)
                 .or_default()
                 .push((code, su.code, su.time));

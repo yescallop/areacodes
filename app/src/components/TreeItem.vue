@@ -66,7 +66,7 @@ function act() {
 interface LinkWithDirection {
   code: number,
   time: number,
-  details?: string,
+  desc?: string,
   rev: boolean,
 }
 
@@ -78,7 +78,7 @@ function getLinks(): LinkWithDirection[] {
     links = predecessors.filter(link => {
       return link.time! >= item.start && (item.end == undefined || link.time! < item.end);
     }).map(link => {
-      return { code: link.code, time: link.time!, details: link.details, rev: true };
+      return { code: link.code, time: link.time!, desc: link.desc, rev: true };
     });
   } else {
     links = [];
@@ -89,7 +89,7 @@ function getLinks(): LinkWithDirection[] {
       links.push({
         code: link.code,
         time: timeOrDefault(link, item),
-        details: link.details,
+        desc: link.desc,
         rev: false,
       });
     });
@@ -107,14 +107,14 @@ function zipLinks(links: LinkWithDirection[]): LinkZip[] {
     return [];
   }
   let out: LinkZip[] = [];
-  let codes = [{ code: links[0].code, details: links[0].details }];
+  let codes = [{ code: links[0].code, desc: links[0].desc }];
   let last = links[0];
   links.slice(1).forEach(link => {
     if (link.time == last.time && link.rev == last.rev) {
-      codes.push({ code: link.code, details: link.details });
+      codes.push({ code: link.code, desc: link.desc });
     } else {
       out.push({ codes, time: last.time, rev: last.rev });
-      codes = [{ code: link.code, details: link.details }];
+      codes = [{ code: link.code, desc: link.desc }];
       last = link;
     }
   });
