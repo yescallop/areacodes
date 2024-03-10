@@ -13,7 +13,7 @@
 | 历史行政区划代码 | 无 | [data](data) | [SQL](sql) \| [JSON] \| [CSV] | 已完成 |
 | 新旧代码对应关系 | [diff 规范](diff-spec.md) | [diff](diff) | 同上 | 基本完成* |
 
-\* 代码变更的文本描述收集工作现已开始，欢迎各位参与，详情请见 Issue #TODO。
+\* 代码变更的文本描述收集工作现已开始，欢迎各位参与，详情参见 [Issue #6](https://github.com/yescallop/areacodes/issues/6)。
 
 ## CSV 汇总表说明
 
