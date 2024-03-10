@@ -70,6 +70,14 @@ INSERT INTO `details` (`text`) VALUES
 2023年4月28日
 
 来源：[四川省民政厅网站](https://mzt.sc.gov.cn/scmzt/gsgg/2023/5/8/a127e13f97c3449db81c293c149970e2.shtml)'),
+('# 昭通市人民政府关于昭阳区靖安镇划归大关县管辖的公告
+
+根据省人民政府批复，昭阳区靖安镇划归大关县管辖，以原昭阳区靖安镇行政区域范围为大关县靖安镇行政区域范围，靖安镇人民政府驻洪家营村。大关县靖安镇行政区划代码为530624108000。
+
+昭通市人民政府
+2024年1月30日
+
+来源：[昭通市人民政府网站](http://www.zt.gov.cn/lanmu/xwzx/contents/15/227164.html)'),
 ('# 关于批准撤销米林县设立县级米林市的公告
 
 经党中央、国务院批准，撤销米林县，设立县级米林市，以原米林县的行政区域为米林市行政区域。米林市人民政府驻米林镇。米林市由西藏自治区直辖，林芝市代管。
@@ -115,6 +123,7 @@ SET @id = @id + 1;
 UPDATE `changes` SET `details_id` = @id WHERE (`code`, `new_code`, `time`) IN ((620122, 620102, 2022), (620122, 620105, 2022));
 UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (640122, 640106, 2022);
 UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (511525, 511526, 2023);
+UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (530602, 530624, 2023);
 UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540422, 540481, 2023);
 UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540530, 540581, 2023);
 UPDATE `changes` SET `details_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (620121, 620122, 2023);
