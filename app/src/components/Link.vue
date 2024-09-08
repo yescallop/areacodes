@@ -28,6 +28,8 @@ rt {
   text-align: center;
   user-select: none;
   font-size: 75%;
-  margin-bottom: -6px;
+  @supports (-moz-appearance: none) {
+    margin-bottom: -6px;
+  }
 }
 </style>
