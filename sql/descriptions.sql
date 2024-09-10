@@ -126,7 +126,31 @@ INSERT INTO `descriptions` (`text`) VALUES
 新疆维吾尔自治区人民政府
 2023年1月20日
 
-来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202301/8bd4c6578fae4c469680d068c187c7b0.shtml)');
+来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202301/8bd4c6578fae4c469680d068c187c7b0.shtml)'),
+('# 行政区划调整公告
+
+近日，经自治区人民政府下发《关于同意喀什地区调整喀什市与疏附县疏勒县行政区划的批复》（新政函〔2024〕134号）同意疏附县疏勒县部分区域划入喀什市管辖。
+
+喀什地区民政局
+2024年7月24日
+
+来源：[喀什地区行政公署网站](https://www.kashi.gov.cn/ksdqxzgs/c106694/202407/77d2ac785e6443cd85b49caa04e87e47.shtml)'),
+('# 关于调整图木舒克市与克孜勒苏柯尔克孜自治州阿图什市、乌恰县行政区划的公告
+
+党中央、国务院于近日批准，将克孜勒苏柯尔克孜自治州阿图什市、乌恰县部分行政区域划归图木舒克市管辖。
+
+自治区民政厅  兵团民政局
+2024年5月31日
+
+来源：[新疆维吾尔自治区民政厅网站](https://mzt.xinjiang.gov.cn/xjmzt/c112990/202405/284c5498aeb44013ad189343f7f07080.shtml)'),
+('# 关于调整铁门关市与巴音郭楞蒙古自治州和静县、焉耆回族自治县、博湖县、尉犁县、且末县行政区划的公告
+
+党中央、国务院于近日批准，将巴音郭楞蒙古自治州和静县、焉耆回族自治县、博湖县、尉犁县、且末县部分行政区域划归铁门关市管辖。
+
+自治区民政厅  兵团民政局
+2024年5月31日
+
+来源：[新疆维吾尔自治区民政厅网站](https://mzt.xinjiang.gov.cn/xjmzt/c112990/202405/834823359bbc4bd4babc103177464474.shtml)');
 SET @id = LAST_INSERT_ID();
 
 UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) = (230902, 230904, 2022);
@@ -141,4 +165,10 @@ UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540530, 540581, 2023);
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (620121, 620122, 2023);
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (650000, 659012, 2023);
+SET @id = @id + 1;
+UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((653121, 653101, 2024), (653122, 653101, 2024));
+SET @id = @id + 1;
+UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((653001, 659003, 2024), (653024, 659003, 2024));
+SET @id = @id + 1;
+UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((652823, 659006, 2024), (652825, 659006, 2024), (652826, 659006, 2024), (652827, 659006, 2024), (652829, 659006, 2024));
 COMMIT;
