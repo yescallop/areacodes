@@ -10,7 +10,7 @@ use crate::{consts::*, files, for_each_line_in, read_data};
 pub struct FwdDiff<'a> {
     pub time: u32,
     pub code: u32,
-    pub internal: bool,
+    pub transfer: bool,
     pub is_summary: bool,
     pub attr: &'a [u32],
     pub desc_id: Option<u32>,
@@ -84,12 +84,12 @@ pub fn process_diff(
 
             assert!(!described || desc_id.is_some(), "{code}: no description");
 
-            if line.internal {
+            if line.transfer {
                 let src_name = src.name_by_code(code);
                 let dst_name = dst.name_by_code(code);
                 assert!(
                     src_name == dst_name && src_name == Some(name),
-                    "{code}: invalid internal change",
+                    "{code}: invalid transfer",
                 );
             } else if line.fwd {
                 assert!(
@@ -121,7 +121,7 @@ pub fn process_diff(
                 handle_fwd_diff(FwdDiff {
                     time,
                     code,
-                    internal: line.internal,
+                    transfer: line.transfer,
                     is_summary,
                     attr: &attr[..],
                     desc_id,
@@ -131,7 +131,7 @@ pub fn process_diff(
                     handle_fwd_diff(FwdDiff {
                         time,
                         code: sel_code,
-                        internal: line.internal,
+                        transfer: line.transfer,
                         is_summary,
                         attr: &[code],
                         desc_id,
@@ -322,7 +322,7 @@ impl DataTable {
 #[derive(Debug)]
 struct ChangeLine<'a> {
     fwd: bool,
-    internal: bool,
+    transfer: bool,
     code: u32,
     name: &'a str,
     attr: Vec<Selector<'a>>,
@@ -341,11 +341,11 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
     }
 
     let mut fwd = false;
-    let mut internal = false;
+    let mut transfer = false;
     match line.as_bytes()[0] {
         b'-' => fwd = true,
         b'+' => {}
-        b'=' => internal = true,
+        b'=' => transfer = true,
         b'#' => return Ok(Line::Comment(&line[1..])),
         _ => return Err(()),
     }
@@ -357,7 +357,7 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
     let (name, attr_str) = line.split_once(['>', '<']).ok_or(())?;
 
     let actual_fwd = line.as_bytes()[name.len()] == b'>';
-    if internal {
+    if transfer {
         fwd = actual_fwd;
     } else if actual_fwd != fwd {
         return Err(());
@@ -397,7 +397,7 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
 
     Ok(Line::Change(ChangeLine {
         fwd,
-        internal,
+        transfer,
         code,
         name,
         attr,
