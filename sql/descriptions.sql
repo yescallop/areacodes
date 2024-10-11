@@ -127,6 +127,14 @@ INSERT INTO `descriptions` (`text`) VALUES
 2023年1月20日
 
 来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202301/8bd4c6578fae4c469680d068c187c7b0.shtml)'),
+('# 国务院批复同意我省调整德钦县与维西傈僳族自治县行政区划
+
+经党中央、国务院批准，同意维西傈僳族自治县叶枝镇、巴迪乡划归德钦县管辖。德钦县叶枝镇行政区划代码为533422102、巴迪乡行政区划代码为533422207。
+
+云南省民政厅
+2024年9月27日
+
+来源：[云南省人民政府网站](https://www.yn.gov.cn/zwgk/gsgg/202409/t20240927_305017.html)'),
 ('# 行政区划调整公告
 
 近日，经自治区人民政府下发《关于同意喀什地区调整喀什市与疏附县疏勒县行政区划的批复》（新政函〔2024〕134号）同意疏附县疏勒县部分区域划入喀什市管辖。
@@ -165,6 +173,7 @@ UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (540530, 540581, 2023);
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (620121, 620122, 2023);
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (650000, 659012, 2023);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (533423, 533422, 2024);
 SET @id = @id + 1;
 UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((653121, 653101, 2024), (653122, 653101, 2024));
 SET @id = @id + 1;
