@@ -143,6 +143,23 @@ INSERT INTO `descriptions` (`text`) VALUES
 2024年7月24日
 
 来源：[喀什地区行政公署网站](https://www.kashi.gov.cn/ksdqxzgs/c106694/202407/77d2ac785e6443cd85b49caa04e87e47.shtml)'),
+('# 新疆维吾尔自治区人民政府关于党中央、国务院批准设立和康县的公告
+
+经党中央、国务院批准，设立和康县。和康县人民政府驻赛图拉镇。和康县由和田地区管辖。
+
+新疆维吾尔自治区人民政府
+2024年12月27日
+
+来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202412/624c97cbd6ef462e8b4ce0f234ac58c1.shtml)'),
+('# 新疆维吾尔自治区人民政府关于党中央、国务院批准设立和安县的公告
+
+经党中央、国务院批准，设立和安县。和安县人民政府驻红柳镇。和安县由和田地区管辖。
+
+
+新疆维吾尔自治区人民政府
+2024年12月27日
+
+来源：[新疆维吾尔自治区人民政府网站](https://www.xinjiang.gov.cn/xinjiang/tzgg/202412/a0b3b3ac363546589618dd9d49cc7fd7.shtml)'),
 ('# 关于调整图木舒克市与克孜勒苏柯尔克孜自治州阿图什市、乌恰县行政区划的公告
 
 党中央、国务院于近日批准，将克孜勒苏柯尔克孜自治州阿图什市、乌恰县部分行政区域划归图木舒克市管辖。
@@ -176,6 +193,8 @@ UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time
 UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (533423, 533422, 2024);
 SET @id = @id + 1;
 UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((653121, 653101, 2024), (653122, 653101, 2024));
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (653223, 653228, 2024);
+UPDATE `changes` SET `desc_id` = @id := @id + 1 WHERE (`code`, `new_code`, `time`) = (653221, 653229, 2024);
 SET @id = @id + 1;
 UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN ((653001, 659003, 2024), (653024, 659003, 2024));
 SET @id = @id + 1;
