@@ -4,7 +4,7 @@
 
 ## 在线预览
 
-[由此进入在线预览][preview]
+[由此进入在线预览](https://yescallop.github.io/areacodes/)
 
 ## 数据集情况
 
@@ -41,7 +41,6 @@
 - [全国行政区划信息查询平台][4]，民政部。
 - [原始数据勘误](errata.md)，本项目。
 
-[preview]: https://yescallop.cn/areacodes/
 [CSV]: https://raw.githubusercontent.com/yescallop/areacodes/master/result.csv
 [JSON]: https://raw.githubusercontent.com/yescallop/areacodes/master/codes.json
 [CC0 1.0]: https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans
