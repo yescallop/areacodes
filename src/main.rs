@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry::*, BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, hash_map::Entry::*},
     fs::File,
     io::{BufWriter, Result, Seek, Write},
     time::Instant,
@@ -171,7 +171,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
         for i in 0..area.entries.len() - 1 {
             let end = area.entries[i + 1].time;
             let entry = &area.entries[i];
-            if entry.name.is_some() && entry.attr.iter().rev().next().map(|su| su.time) != Some(end)
+            if entry.name.is_some() && entry.attr.iter().next_back().map(|su| su.time) != Some(end)
             {
                 panic!("parent name changed with no corresponding diff");
             }
@@ -199,6 +199,7 @@ struct Output<'a> {
     sql_descriptions: BufWriter<File>,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_entry<'a>(
     out: &mut Output<'a>,
     map: &HashMap<u32, Area>,
