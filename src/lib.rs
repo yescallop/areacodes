@@ -18,7 +18,7 @@ pub mod consts {
     pub const OUTPUT_SQL_CHANGES_PATH: &str = "sql/changes.sql";
     pub const OUTPUT_SQL_DESCRIPTIONS_PATH: &str = "sql/descriptions.sql";
     pub const CSV_HEADER: &str =
-        "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更（弃用）时间,新代码\n";
+        "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更/弃用时间,新代码\n";
     pub const SQL_CODES_HEADER: &str =
         "INSERT INTO `codes` (`code`, `name`, `start`, `end`) VALUES\n";
     pub const SQL_CHANGES_HEADER: &str =
