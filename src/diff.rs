@@ -47,9 +47,8 @@ pub fn process_diff(
         let mut desc_id = None;
 
         for_each_line_in(&diff, |line_i, line| {
-            let Ok(line) = parse_line(line) else {
-                panic!("invalid line at {file_stem}.diff:{line_i}");
-            };
+            let line = parse_line(line)
+                .unwrap_or_else(|| panic!("invalid line at {file_stem}.diff:{line_i}"));
 
             let line = match line {
                 Line::Change(line) => {
@@ -254,12 +253,7 @@ fn select(
             (code as i32, -(res_code as i32))
         };
 
-        let mut insert = true;
-        if let Some(rem) = rem.get_mut(&res_code) {
-            if rem.remove(&code) {
-                insert = false;
-            }
-        }
+        let insert = !rem.get_mut(&res_code).is_some_and(|rem| rem.remove(&code));
         let set = rem.entry(code).or_default();
         if insert {
             set.insert(res_code);
@@ -268,22 +262,22 @@ fn select(
 }
 
 struct DataTable {
-    c2n: HashMap<u32, String>,
-    n2c: HashMap<String, Vec<u32>>,
-    has_children: HashSet<u32>,
+    codes_by_name: HashMap<u32, String>,
+    names_by_code: HashMap<String, Vec<u32>>,
+    codes_with_children: HashSet<u32>,
 }
 
 impl DataTable {
     fn new() -> Self {
         DataTable {
-            c2n: HashMap::with_capacity(4096),
-            n2c: HashMap::with_capacity(4096),
-            has_children: HashSet::with_capacity(512),
+            codes_by_name: HashMap::with_capacity(4096),
+            names_by_code: HashMap::with_capacity(4096),
+            codes_with_children: HashSet::with_capacity(512),
         }
     }
 
     fn name_by_code(&self, code: u32) -> Option<&str> {
-        self.c2n
+        self.codes_by_name
             .get(&code)
             .map(|x| &**x)
             .or_else(|| (code == 0).then_some("中华人民共和国"))
@@ -291,7 +285,7 @@ impl DataTable {
 
     fn parent_code(&self, code: u32) -> u32 {
         let code = parent(code);
-        if self.c2n.contains_key(&code) {
+        if self.codes_by_name.contains_key(&code) {
             code
         } else {
             parent(code)
@@ -299,23 +293,23 @@ impl DataTable {
     }
 
     fn codes_by_name(&self, name: &str) -> Option<&[u32]> {
-        self.n2c.get(name).map(|x| &**x)
+        self.names_by_code.get(name).map(|x| &**x)
     }
 
     fn has_children(&self, code: u32) -> bool {
-        self.has_children.contains(&code)
+        self.codes_with_children.contains(&code)
     }
 
     fn insert(&mut self, code: u32, name: String) {
-        self.c2n.insert(code, name.clone());
-        self.n2c.entry(name).or_default().push(code);
-        self.has_children.insert(self.parent_code(code));
+        self.codes_by_name.insert(code, name.clone());
+        self.names_by_code.entry(name).or_default().push(code);
+        self.codes_with_children.insert(self.parent_code(code));
     }
 
     fn clear(&mut self) {
-        self.c2n.clear();
-        self.n2c.clear();
-        self.has_children.clear();
+        self.codes_by_name.clear();
+        self.names_by_code.clear();
+        self.codes_with_children.clear();
     }
 }
 
@@ -335,9 +329,9 @@ enum Line<'a> {
     Empty,
 }
 
-fn parse_line(line: &str) -> Result<Line<'_>, ()> {
+fn parse_line(line: &str) -> Option<Line<'_>> {
     if line.is_empty() {
-        return Ok(Line::Empty);
+        return Some(Line::Empty);
     }
 
     let mut fwd = false;
@@ -346,21 +340,21 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
         b'-' => fwd = true,
         b'+' => {}
         b'=' => transfer = true,
-        b'#' => return Ok(Line::Comment(&line[1..])),
-        _ => return Err(()),
+        b'#' => return Some(Line::Comment(&line[1..])),
+        _ => return None,
     }
 
-    let code = line.get(1..7).and_then(|s| s.parse().ok()).ok_or(())?;
+    let code = line.get(1..7)?.parse().ok()?;
     assert_eq!(line.as_bytes()[7], b'\t');
 
     let line = &line[8..];
-    let (name, attr_str) = line.split_once(['>', '<']).ok_or(())?;
+    let (name, attr_str) = line.split_once(['>', '<'])?;
 
     let actual_fwd = line.as_bytes()[name.len()] == b'>';
     if transfer {
         fwd = actual_fwd;
     } else if actual_fwd != fwd {
-        return Err(());
+        return None;
     }
 
     let mut attr = Vec::new();
@@ -377,11 +371,8 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
             ".." => Selector::ParentCode,
             _ => {
                 let parent = if let Some((name, rest)) = sel.split_once('(') {
-                    let Some(parent) = rest.strip_suffix(')') else {
-                        return Err(());
-                    };
                     sel = name;
-                    Some(parent)
+                    Some(rest.strip_suffix(')')?)
                 } else {
                     None
                 };
@@ -395,7 +386,7 @@ fn parse_line(line: &str) -> Result<Line<'_>, ()> {
         attr.push(sel);
     }
 
-    Ok(Line::Change(ChangeLine {
+    Some(Line::Change(ChangeLine {
         fwd,
         transfer,
         code,

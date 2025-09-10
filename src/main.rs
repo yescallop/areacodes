@@ -171,8 +171,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
         for i in 0..area.entries.len() - 1 {
             let end = area.entries[i + 1].time;
             let entry = &area.entries[i];
-            if entry.name.is_some() && entry.attr.last().map(|su| su.time) != Some(end)
-            {
+            if entry.name.is_some() && entry.attr.last().map(|su| su.time) != Some(end) {
                 panic!("parent name changed with no corresponding diff");
             }
         }
