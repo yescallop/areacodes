@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     io,
 };
 
@@ -24,6 +24,11 @@ pub fn process_diff(
     let mut rem = HashMap::with_capacity(1024);
     let mut attr = Vec::new();
 
+    // Check for possible omission or duplication by calculating
+    // common codes twice and comparing two results.
+    let mut codes_src = BTreeSet::new();
+    let mut codes_dst = BTreeSet::new();
+
     let mut desc_counter = 0;
 
     for diff in files(DIFF_DIRECTORY) {
@@ -34,9 +39,11 @@ pub fn process_diff(
 
         read_data(&format!("{DATA_DIRECTORY}/{src_year}.txt"), |code, name| {
             src.insert(code, name);
+            codes_src.insert(code);
         })?;
         read_data(&format!("{DATA_DIRECTORY}/{dst_year}.txt"), |code, name| {
             dst.insert(code, name);
+            codes_dst.insert(code);
         })?;
 
         let time = dst_year.parse().unwrap();
@@ -94,17 +101,13 @@ pub fn process_diff(
                     src.name_by_code(code) == Some(name),
                     "{code}: invalid deletion",
                 );
-                // if dst.name_by_code(code) == Some(name) {
-                //     println!("{code}: same-name deletion");
-                // }
+                assert!(codes_src.remove(&code), "{code}: duplicate deletion");
             } else {
                 assert!(
                     dst.name_by_code(code) == Some(name),
                     "{code}: invalid addition",
                 );
-                // if src.name_by_code(code) == Some(name) {
-                //     println!("{code}: same-name addition");
-                // }
+                assert!(codes_dst.remove(&code), "{code}: duplicate addition");
             }
 
             let (table, origin) = if line.fwd { (&dst, &src) } else { (&src, &dst) };
@@ -149,9 +152,16 @@ pub fn process_diff(
             }
         }
 
+        let sym_diff: BTreeSet<_> = codes_src.symmetric_difference(&codes_dst).collect();
+        if !sym_diff.is_empty() {
+            panic!("omission detected: {sym_diff:?}")
+        }
+
         src.clear();
         dst.clear();
         rem.clear();
+        codes_src.clear();
+        codes_dst.clear();
     }
 
     Ok(())
@@ -407,6 +417,8 @@ fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
 
                 if sel == "#" {
                     sel = name;
+                } else if sel == name {
+                    println!("unnecessary repetition: {name}");
                 }
                 Selector::Name { name: sel, parent }
             }
