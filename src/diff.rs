@@ -264,22 +264,22 @@ fn select(
 }
 
 struct DataTable {
-    codes_by_name: HashMap<u32, String>,
-    names_by_code: HashMap<String, Vec<u32>>,
+    names_by_code: HashMap<u32, String>,
+    codes_by_name: HashMap<String, Vec<u32>>,
     codes_with_children: HashSet<u32>,
 }
 
 impl DataTable {
     fn new() -> Self {
         DataTable {
-            codes_by_name: HashMap::with_capacity(4096),
             names_by_code: HashMap::with_capacity(4096),
+            codes_by_name: HashMap::with_capacity(4096),
             codes_with_children: HashSet::with_capacity(512),
         }
     }
 
     fn name_by_code(&self, code: u32) -> Option<&str> {
-        self.codes_by_name
+        self.names_by_code
             .get(&code)
             .map(|x| &**x)
             .or_else(|| (code == 0).then_some("中华人民共和国"))
@@ -287,7 +287,7 @@ impl DataTable {
 
     fn parent_code(&self, code: u32) -> u32 {
         let code = parent(code);
-        if self.codes_by_name.contains_key(&code) {
+        if self.names_by_code.contains_key(&code) {
             code
         } else {
             parent(code)
@@ -295,7 +295,7 @@ impl DataTable {
     }
 
     fn codes_by_name(&self, name: &str) -> Option<&[u32]> {
-        self.names_by_code.get(name).map(|x| &**x)
+        self.codes_by_name.get(name).map(|x| &**x)
     }
 
     fn has_children(&self, code: u32) -> bool {
@@ -303,14 +303,14 @@ impl DataTable {
     }
 
     fn insert(&mut self, code: u32, name: String) {
-        self.codes_by_name.insert(code, name.clone());
-        self.names_by_code.entry(name).or_default().push(code);
+        self.names_by_code.insert(code, name.clone());
+        self.codes_by_name.entry(name).or_default().push(code);
         self.codes_with_children.insert(self.parent_code(code));
     }
 
     fn clear(&mut self) {
-        self.codes_by_name.clear();
         self.names_by_code.clear();
+        self.codes_by_name.clear();
         self.codes_with_children.clear();
     }
 }
