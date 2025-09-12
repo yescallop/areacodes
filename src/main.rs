@@ -40,7 +40,9 @@ fn main() -> Result<()> {
                     let area = e.into_mut();
                     let last: &mut Entry = area.entries.last_mut().unwrap();
                     let parent_name_changed = last.parent_name.as_ref() != parent_name;
+
                     if last.name.as_ref() != Some(name) || parent_name_changed {
+                        last.parent_name_changed = parent_name_changed;
                         area.entries.push(Entry::new(time, Some(name), parent_name));
                         area.deprecated = false;
                     }
@@ -160,7 +162,6 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
             entry.attr.extend(fd.attr.iter().map(|&code| Successor {
                 time: fd.time,
                 code,
-                is_summary: fd.is_summary,
                 desc_id: fd.desc_id,
             }));
         },
@@ -171,8 +172,11 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
         for i in 0..area.entries.len() - 1 {
             let end = area.entries[i + 1].time;
             let entry = &area.entries[i];
-            if entry.name.is_some() && entry.attr.last().map(|su| su.time) != Some(end) {
-                panic!("parent name changed with no corresponding diff");
+            if entry.name.is_some()
+                && entry.parent_name_changed
+                && entry.attr.last().map(|su| su.time) != Some(end)
+            {
+                println!("{entry:?}: parent name changed with no corresponding diff");
             }
         }
     }
@@ -252,7 +256,6 @@ fn write_entry<'a>(
         successors: attr
             .iter()
             .copied()
-            .filter(|su| !su.is_summary)
             .map(|mut su| {
                 if end == Some(su.time) {
                     su.time = 0;
@@ -307,7 +310,7 @@ fn write_entry<'a>(
         }
     }
 
-    attr.iter().filter(|su| !su.is_summary).try_for_each(|su| {
+    attr.iter().try_for_each(|su| {
         if out.sql_changes.stream_position()? != SQL_CHANGES_HEADER.len() as u64 {
             writeln!(out.sql_changes, ",")?;
         }
@@ -396,6 +399,7 @@ struct Entry {
     name: Option<String>,
     parent_name: Option<String>,
     attr: BTreeSet<Successor>,
+    parent_name_changed: bool,
 }
 
 impl Entry {
@@ -405,6 +409,7 @@ impl Entry {
             name: name.cloned(),
             parent_name: parent_name.cloned(),
             attr: BTreeSet::new(),
+            parent_name_changed: false,
         }
     }
 }

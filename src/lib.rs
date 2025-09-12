@@ -54,8 +54,6 @@ pub struct Successor {
     #[serde(skip_serializing_if = "is_default")]
     pub time: u32,
     pub code: u32,
-    #[serde(skip_serializing_if = "is_default")]
-    pub is_summary: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub desc_id: Option<u32>,
 }

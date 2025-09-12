@@ -11,7 +11,6 @@ pub struct FwdDiff<'a> {
     pub time: u32,
     pub code: u32,
     pub transfer: bool,
-    pub is_summary: bool,
     pub attr: &'a [u32],
     pub desc_id: Option<u32>,
 }
@@ -113,15 +112,19 @@ pub fn process_diff(
             attr.clear();
             select(table, origin, &mut rem, &line, &mut attr);
 
-            assert!(!attr.is_empty(), "{code}: empty attr");
-            let is_summary = origin.has_children(code);
+            let has_children = origin.has_children(code);
+            if has_children {
+                assert!(attr.is_empty(), "{code}: nonempty attr with children");
+                return;
+            } else {
+                assert!(!attr.is_empty(), "{code}: empty attr without children");
+            }
 
             if line.fwd {
                 handle_fwd_diff(FwdDiff {
                     time,
                     code,
                     transfer: line.transfer,
-                    is_summary,
                     attr: &attr[..],
                     desc_id,
                 })
@@ -131,7 +134,6 @@ pub fn process_diff(
                         time,
                         code: sel_code,
                         transfer: line.transfer,
-                        is_summary,
                         attr: &[code],
                         desc_id,
                     })
@@ -184,7 +186,7 @@ fn select(
 ) {
     let code = line.code;
 
-    for sel in &line.attr {
+    for sel in line.attr.iter().flatten() {
         let mut res_code;
         match sel {
             Selector::Name { name, parent } => {
@@ -319,7 +321,7 @@ struct ChangeLine<'a> {
     transfer: bool,
     code: u32,
     name: &'a str,
-    attr: Vec<Selector<'a>>,
+    attr: Option<Vec<Selector<'a>>>,
 }
 
 #[derive(Debug)]
@@ -344,21 +346,47 @@ fn parse_line(line: &str) -> Option<Line<'_>> {
         _ => return None,
     }
 
-    let code = line.get(1..7)?.parse().ok()?;
-    assert_eq!(line.as_bytes()[7], b'\t');
-
-    let line = &line[8..];
-    let (name, attr_str) = line.split_once(['>', '<'])?;
-
-    let actual_fwd = line.as_bytes()[name.len()] == b'>';
-    if transfer {
-        fwd = actual_fwd;
-    } else if actual_fwd != fwd {
+    if line.len() < 8 {
         return None;
     }
 
-    let mut attr = Vec::new();
-    for mut sel in attr_str.split(',') {
+    let code = line[1..7].parse().ok()?;
+
+    if line.as_bytes()[7] != b'\t' {
+        return None;
+    }
+
+    let line = &line[8..];
+    let (name, attr) = match line.split_once(['>', '<']) {
+        Some((name, attr)) => {
+            let actual_fwd = line.as_bytes()[name.len()] == b'>';
+            if transfer {
+                fwd = actual_fwd;
+            } else if actual_fwd != fwd {
+                return None;
+            }
+            (name, Some(parse_attr(attr, name)?))
+        }
+        None => {
+            if transfer {
+                return None;
+            }
+            (line, None)
+        }
+    };
+
+    Some(Line::Change(ChangeLine {
+        fwd,
+        transfer,
+        code,
+        name,
+        attr,
+    }))
+}
+
+fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
+    let mut res = Vec::new();
+    for mut sel in attr.split(',') {
         if sel.ends_with('?') {
             continue;
         }
@@ -383,16 +411,9 @@ fn parse_line(line: &str) -> Option<Line<'_>> {
                 Selector::Name { name: sel, parent }
             }
         };
-        attr.push(sel);
+        res.push(sel);
     }
-
-    Some(Line::Change(ChangeLine {
-        fwd,
-        transfer,
-        code,
-        name,
-        attr,
-    }))
+    Some(res)
 }
 
 #[derive(Debug)]
