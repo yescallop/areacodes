@@ -1,7 +1,7 @@
 #![warn(rust_2018_idioms)]
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -14,17 +14,8 @@ pub mod consts {
     pub const DIFF_DIRECTORY: &str = "diff";
     pub const OUTPUT_CSV_PATH: &str = "result.csv";
     pub const OUTPUT_JSON_PATH: &str = "codes.json";
-    pub const OUTPUT_SQL_CODES_PATH: &str = "sql/codes.sql";
-    pub const OUTPUT_SQL_CHANGES_PATH: &str = "sql/changes.sql";
-    pub const OUTPUT_SQL_DESCRIPTIONS_PATH: &str = "sql/descriptions.sql";
     pub const CSV_HEADER: &str =
         "\u{FEFF}代码,一级行政区,二级行政区,名称,级别,状态,启用时间,变更/弃用时间,新代码\n";
-    pub const SQL_CODES_HEADER: &str =
-        "INSERT INTO `codes` (`code`, `name`, `start`, `end`) VALUES\n";
-    pub const SQL_CHANGES_HEADER: &str =
-        "INSERT INTO `changes` (`code`, `new_code`, `time`) VALUES\n";
-    pub const SQL_DESCRIPTIONS_HEADER: &str =
-        "BEGIN;\nINSERT INTO `descriptions` (`text`) VALUES\n";
 }
 
 mod diff;
@@ -33,7 +24,7 @@ pub use diff::*;
 #[derive(serde::Serialize, Default)]
 pub struct JsonOutput<'a> {
     pub items: Vec<CodeItem<'a>>,
-    pub descriptions: Vec<String>,
+    pub descriptions: BTreeMap<u32, Vec<String>>,
 }
 
 #[derive(serde::Serialize, Default)]

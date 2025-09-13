@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, hash_map::Entry::*},
     fs::File,
-    io::{BufWriter, Result, Seek, Write},
+    io::{BufWriter, Result, Write},
     time::Instant,
 };
 
@@ -62,24 +62,8 @@ fn main() -> Result<()> {
             items: vec![],
             descriptions: insert_diff(&mut all_map)?,
         },
-        sql_codes: BufWriter::new(File::create(OUTPUT_SQL_CODES_PATH)?),
-        sql_changes: BufWriter::new(File::create(OUTPUT_SQL_CHANGES_PATH)?),
-        sql_descriptions: BufWriter::new(File::create(OUTPUT_SQL_DESCRIPTIONS_PATH)?),
     };
     write!(out.csv, "{CSV_HEADER}")?;
-    write!(out.sql_codes, "{SQL_CODES_HEADER}")?;
-    write!(out.sql_changes, "{SQL_CHANGES_HEADER}")?;
-    write!(out.sql_descriptions, "{SQL_DESCRIPTIONS_HEADER}")?;
-
-    for (i, text) in out.json.descriptions.iter().enumerate() {
-        if i != 0 {
-            writeln!(out.sql_descriptions, ",")?;
-        }
-        write!(out.sql_descriptions, "('{text}')")?;
-    }
-    writeln!(out.sql_descriptions, ";\nSET @id = LAST_INSERT_ID();\n")?;
-
-    let mut desc_map = BTreeMap::new();
 
     let mut keys = all_map.keys().copied().collect::<Vec<_>>();
     keys.sort_unstable();
@@ -103,50 +87,19 @@ fn main() -> Result<()> {
                 end,
                 i == last,
                 &entry.attr,
-                &mut desc_map,
             )?;
         }
     }
 
     let bw = BufWriter::new(File::create(OUTPUT_JSON_PATH)?);
-    serde_json::to_writer(bw, &out.json).expect("failed to write JSON data");
-
-    for (id, rows) in desc_map.into_iter() {
-        if rows.len() == 1 {
-            let id = if id == 0 { "@id" } else { "@id := @id + 1" };
-            let (code, new_code, time) = rows[0];
-            writeln!(
-                out.sql_descriptions,
-                "UPDATE `changes` SET `desc_id` = {id} WHERE (`code`, `new_code`, `time`) = ({code}, {new_code}, {time});",
-            )?;
-        } else {
-            if id != 0 {
-                writeln!(out.sql_descriptions, "SET @id = @id + 1;")?;
-            }
-            write!(
-                out.sql_descriptions,
-                "UPDATE `changes` SET `desc_id` = @id WHERE (`code`, `new_code`, `time`) IN (",
-            )?;
-            for (i, (code, new_code, time)) in rows.into_iter().enumerate() {
-                if i != 0 {
-                    write!(out.sql_descriptions, ", ")?;
-                }
-                write!(out.sql_descriptions, "({code}, {new_code}, {time})")?;
-            }
-            writeln!(out.sql_descriptions, ");")?;
-        }
-    }
-
-    writeln!(out.sql_codes, ";")?;
-    writeln!(out.sql_changes, ";")?;
-    writeln!(out.sql_descriptions, "COMMIT;")?;
+    serde_json::to_writer_pretty(bw, &out.json).expect("failed to write JSON data");
 
     println!("Finished: {:?}", start.elapsed());
     Ok(())
 }
 
-fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
-    let mut descriptions = vec![];
+fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<BTreeMap<u32, Vec<String>>> {
+    let mut descriptions = BTreeMap::<u32, Vec<String>>::new();
     process_diff(
         |fd| {
             if fd.code == 0 {
@@ -165,7 +118,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<Vec<String>> {
                 desc_id: fd.desc_id,
             }));
         },
-        |text| descriptions.push(text.into()),
+        |time, text| descriptions.entry(time).or_default().push(text.into()),
     )?;
 
     for area in map.values() {
@@ -197,9 +150,6 @@ fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
 struct Output<'a> {
     csv: BufWriter<File>,
     json: JsonOutput<'a>,
-    sql_codes: BufWriter<File>,
-    sql_changes: BufWriter<File>,
-    sql_descriptions: BufWriter<File>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -212,7 +162,6 @@ fn write_entry<'a>(
     end: Option<u32>,
     is_last: bool,
     attr: &BTreeSet<Successor>,
-    desc_map: &mut BTreeMap<u32, Vec<(u32, u32, u32)>>,
 ) -> Result<()> {
     let mut items = &mut out.json.items;
     let level = Level::from_code(code);
@@ -288,16 +237,6 @@ fn write_entry<'a>(
         write!(out.csv, "{end}")?;
     }
 
-    if out.sql_codes.stream_position()? != SQL_CODES_HEADER.len() as u64 {
-        writeln!(out.sql_codes, ",")?;
-    }
-
-    write!(out.sql_codes, "({code}, '{name}', {start}, ")?;
-    match end {
-        Some(end) => write!(out.sql_codes, "{end})")?,
-        None => write!(out.sql_codes, "NULL)")?,
-    }
-
     write!(out.csv, ",")?;
     let sus: BTreeSet<_> = attr.iter().map(|su| (su.time, su.code)).collect();
     for (i, &(time, new_code)) in sus.iter().enumerate() {
@@ -309,20 +248,6 @@ fn write_entry<'a>(
             write!(out.csv, "[{}]", time)?;
         }
     }
-
-    attr.iter().try_for_each(|su| {
-        if out.sql_changes.stream_position()? != SQL_CHANGES_HEADER.len() as u64 {
-            writeln!(out.sql_changes, ",")?;
-        }
-
-        if let Some(id) = su.desc_id {
-            desc_map
-                .entry(id)
-                .or_default()
-                .push((code, su.code, su.time));
-        }
-        write!(out.sql_changes, "({code}, {}, {})", su.code, su.time)
-    })?;
 
     writeln!(out.csv)
 }

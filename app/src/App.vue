@@ -191,7 +191,7 @@ fetch(codesUrl)
     itemArr.value = resp.items;
   });
 
-function insertItem(item: Item, descriptions: string[], parent?: Item) {
+function insertItem(item: Item, descriptions: Record<number, string[]>, parent?: Item) {
   let arr = items.get(item.code);
   if (arr == undefined) {
     arr = [];
@@ -207,8 +207,9 @@ function insertItem(item: Item, descriptions: string[], parent?: Item) {
   arr.push(item);
 
   item.successors?.forEach(link => {
+    const time = timeOrDefault(link, item);
     if (link.desc_id != undefined) {
-      link.desc = descriptions[link.desc_id];
+      link.desc = descriptions[time]![link.desc_id];
       link.desc_id = undefined;
     }
     let links = predecessors.get(link.code);

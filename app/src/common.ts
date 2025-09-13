@@ -14,7 +14,7 @@ export interface GlobalProps {
 
 export interface CodesJson {
   items: Item[],
-  descriptions: string[],
+  descriptions: Record<number, string[]>,
 }
 
 export interface Item {

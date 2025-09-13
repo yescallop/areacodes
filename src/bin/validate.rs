@@ -1,5 +1,5 @@
 use areacodes::*;
 
 fn main() -> Result<()> {
-    process_diff(|_| {}, |_| {})
+    process_diff(|_| {}, |_, _| {})
 }

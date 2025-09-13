@@ -17,7 +17,7 @@ pub struct FwdDiff<'a> {
 
 pub fn process_diff(
     mut handle_fwd_diff: impl FnMut(FwdDiff<'_>),
-    mut handle_descriptions: impl FnMut(&str),
+    mut handle_description: impl FnMut(u32, &str),
 ) -> io::Result<()> {
     let mut src = DataTable::new();
     let mut dst = DataTable::new();
@@ -28,8 +28,6 @@ pub fn process_diff(
     // common codes twice and comparing two results.
     let mut codes_src = BTreeSet::new();
     let mut codes_dst = BTreeSet::new();
-
-    let mut desc_counter = 0;
 
     for diff in files(DIFF_DIRECTORY) {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
@@ -51,6 +49,7 @@ pub fn process_diff(
         let mut described = false;
         let mut desc = String::new();
         let mut desc_id = None;
+        let mut desc_counter = 0;
 
         for_each_line_in(&diff, |line_i, line| {
             let line = parse_line(line)
@@ -60,7 +59,7 @@ pub fn process_diff(
                 Line::Change(line) => {
                     if !desc.is_empty() {
                         // Remove the last newline.
-                        handle_descriptions(&desc[..desc.len() - 1]);
+                        handle_description(time, &desc[..desc.len() - 1]);
                         desc.clear();
 
                         desc_id = Some(desc_counter);
