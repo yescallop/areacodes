@@ -73,12 +73,12 @@ let indexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
 const indexArr: { name: string; items: Item[]; }[] = [];
 
 const searchResult = computed(() => {
-  let text = options.searchText;
+  const text = options.searchText;
   if (text.length == 0) {
     return undefined;
   }
 
-  let res = new Set<Item>();
+  const res = new Set<Item>();
   if (/^[1-9]\d(\d{2}){0,2}$/.test(text)) {
     let code = parseInt(text);
     while (code < 100000) code *= 100;
@@ -89,7 +89,7 @@ const searchResult = computed(() => {
   } else {
     let i = binarySearch(indexArr, t => t.name.localeCompare(text));
     while (i < indexArr.length) {
-      let { name, items } = indexArr[i];
+      const { name, items } = indexArr[i]!;
       if (!name.startsWith(text)) break;
       items.forEach(item => {
         searchHit(item);
@@ -139,9 +139,9 @@ function resolveLink(code: number, time: number, rev: boolean): Item {
 
 function addSuccessors(item: Item, after: number, res: Set<Item>) {
   item.successors?.forEach(link => {
-    let time = timeOrDefault(link, item);
+    const time = timeOrDefault(link, item);
     if (time > after) {
-      let su = resolveLink(link.code, time, false);
+      const su = resolveLink(link.code, time, false);
       res.add(su);
       addSuccessors(su, time, res);
     }
@@ -150,9 +150,9 @@ function addSuccessors(item: Item, after: number, res: Set<Item>) {
 
 function addPredecessors(item: Item, before: number, res: Set<Item>) {
   predecessors.get(item.code)?.forEach(link => {
-    let time = link.time!;
+    const time = link.time!;
     if (time >= item.start && time < before && (item.end == undefined || time < item.end)) {
-      let pre = resolveLink(link.code, time, true);
+      const pre = resolveLink(link.code, time, true);
       res.add(pre);
       addPredecessors(pre, time, res);
     }
@@ -235,8 +235,8 @@ function binarySearch<T>(arr: T[], f: (t: T) => number): number {
   let left = 0;
   let right = size;
   while (left < right) {
-    let mid = left + (size >>> 1);
-    let cmp = f(arr[mid]);
+    const mid = left + (size >>> 1);
+    const cmp = f(arr[mid]!);
     if (cmp < 0) {
       left = mid + 1;
     } else if (cmp > 0) {
@@ -254,7 +254,7 @@ window.onhashchange = scrollToHash;
 let itemToScrollTo: Item | undefined = undefined;
 
 function scrollToHash() {
-  let item = locateHash();
+  const item = locateHash();
   if (item == undefined) return;
 
   if (options.searchText == "") {
@@ -267,12 +267,12 @@ function scrollToHash() {
 
 function locateHash(): Item | undefined {
   if (!location.hash.length) return;
-  let id = location.hash.substring(1);
-  let parts = id.split(':');
+  const id = location.hash.substring(1);
+  const parts = id.split(':');
   if (parts.length == 2) {
-    let code = parseInt(parts[0]);
-    let time = parseInt(parts[1]);
-    let item = props.items.get(code)?.find(item => time == item.start);
+    const code = parseInt(parts[0]!);
+    const time = parseInt(parts[1]!);
+    const item = props.items.get(code)?.find(item => time == item.start);
     if (item != undefined) return item;
     window.alert("该代码不存在！");
   }
@@ -300,7 +300,7 @@ function locateHash(): Item | undefined {
   <main>
     <label>搜索：<input type="search" v-model="options.searchText" /></label>
     <ul class="top">
-      <TreeItem v-for="it in itemArr" :item="it" />
+      <TreeItem v-for="it in itemArr" :item="it" :key="it.code * 10000 + it.start" />
     </ul>
   </main>
 </template>

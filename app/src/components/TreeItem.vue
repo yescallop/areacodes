@@ -1,8 +1,9 @@
+<!-- eslint-disable vue/no-mutating-props -->
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
 import type { GlobalProps, Item, LinkZip } from '@/common';
 import { timeOrDefault, Action } from '@/common';
-import Links from './Links.vue';
+import LinkGroup from './LinkGroup.vue';
 
 const props = defineProps<{ item: Item; }>();
 const gProps = inject<GlobalProps>('props')!;
@@ -13,7 +14,7 @@ const isFolder = computed(() => props.item.children != undefined);
 const isOpen = ref(false);
 const isHidden = computed(() => {
   if (props.item.code < 100000) return false;
-  let res = gProps.searchResult.value;
+  const res = gProps.searchResult.value;
   return res != undefined && !res.has(toRaw(props.item));
 });
 const linkZips = computed(() => zipLinks(getLinks()));
@@ -37,19 +38,19 @@ onUpdated(() => {
 onUnmounted(() => props.item.act = undefined);
 
 function act() {
-  let action = props.item.action;
+  const action = props.item.action;
   if (action != undefined) {
     if (action == Action.Open) {
       isOpen.value = isFolder.value;
     } else if (action == Action.Close) {
       isOpen.value = false;
     } else {
-      let hash = `#${props.item.code}:${props.item.start}`;
+      const hash = `#${props.item.code}:${props.item.start}`;
       if (hash != location.hash) {
         history.pushState(null, "", hash);
       }
 
-      let open = action == Action.OpenFocusScroll;
+      const open = action == Action.OpenFocusScroll;
       if (isFolder.value && action != Action.Focus) {
         isOpen.value = open;
       }
@@ -71,8 +72,8 @@ interface LinkWithDirection {
 }
 
 function getLinks(): LinkWithDirection[] {
-  let item = props.item;
-  let predecessors = gProps.predecessors.get(item.code);
+  const item = props.item;
+  const predecessors = gProps.predecessors.get(item.code);
   let links: LinkWithDirection[];
   if (!gProps.options.hidePredecessors && predecessors != undefined) {
     links = predecessors.filter(link => {
@@ -96,7 +97,7 @@ function getLinks(): LinkWithDirection[] {
   }
 
   links.sort((a, b) => {
-    let diff = a.time - b.time;
+    const diff = a.time - b.time;
     return diff != 0 ? diff : ((b.rev ? 1 : 0) - (a.rev ? 1 : 0));
   });
   return links;
@@ -106,9 +107,9 @@ function zipLinks(links: LinkWithDirection[]): LinkZip[] {
   if (links.length == 0) {
     return [];
   }
-  let out: LinkZip[] = [];
-  let codes = [{ code: links[0].code, desc: links[0].desc }];
-  let last = links[0];
+  const out: LinkZip[] = [];
+  let last = links[0]!;
+  let codes = [{ code: last.code, desc: last.desc }];
   links.slice(1).forEach(link => {
     if (link.time == last.time && link.rev == last.rev) {
       codes.push({ code: link.code, desc: link.desc });
@@ -132,7 +133,7 @@ function onKeyDown(e: KeyboardEvent) {
     if (isOpen.value) {
       isOpen.value = false;
     } else {
-      let parent = props.item.parent;
+      const parent = props.item.parent;
       if (parent != undefined) {
         parent.action = Action.Focus;
         parent.act!();
@@ -157,9 +158,9 @@ function onKeyDown(e: KeyboardEvent) {
       </template>
       <template v-else>{{ item.name }}</template>
     </div>
-    <Links :link-zips="linkZips" />
+    <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
-      <TreeItem v-for="child in item.children" :item="child" />
+      <TreeItem v-for="it in item.children" :item="it" :key="it.code * 10000 + it.start" />
     </ul>
   </li>
 </template>

@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import type { GlobalProps, LinkZip } from '@/common';
-import Link from './Link.vue';
+import LinkItem from './LinkItem.vue';
 
 const props = defineProps<{ linkZips: LinkZip[]; }>();
 
 const gProps = inject<GlobalProps>('props')!;
 
 const filteredLinkZips = computed(() => {
-  let out = [];
+  const out = [];
   for (const linkZip of props.linkZips) {
-    let items = linkZip.codes
+    const items = linkZip.codes
       .map(it => {
-        let item = gProps.resolveLink(it.code, linkZip.time, linkZip.rev);
+        const item = gProps.resolveLink(it.code, linkZip.time, linkZip.rev);
         return { item, desc: it.desc };
       }).filter(it => {
         if (it.item.code < 100000) return true;
-        let res = gProps.searchResult.value;
+        const res = gProps.searchResult.value;
         return res == undefined || res.has(it.item);
       });
     if (items.length)
@@ -27,11 +27,11 @@ const filteredLinkZips = computed(() => {
 </script>
 <template>
   <ul v-if="filteredLinkZips.length" class="links">
-    <li v-for="linkZip in filteredLinkZips" :class="{ rev: linkZip.rev }">
+    <li v-for="linkZip in filteredLinkZips" :class="{ rev: linkZip.rev }" :key="linkZip.time">
       {{ linkZip.rev ? "<=" : "=>" }}
-      <template v-for="(it, index) in linkZip.items">
+      <template v-for="(it, index) in linkZip.items" :key="it.item.code">
         <template v-if="index != 0">,</template>
-        <Link :item="it.item" :desc="it.desc" />
+        <LinkItem :item="it.item" :desc="it.desc" />
       </template>
       &lt;{{ linkZip.time }}&gt;
     </li>
