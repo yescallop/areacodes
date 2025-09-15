@@ -9,17 +9,17 @@ const gProps = inject<GlobalProps>('props')!;
 
 const filteredLinkZips = computed(() => {
   const out = [];
+  const res = gProps.searchResult.value;
   for (const linkZip of props.linkZips) {
+    let filtered = true;
     const items = linkZip.codes
       .map(it => {
         const item = gProps.resolveLink(it.code, linkZip.time, linkZip.rev);
-        return { item, desc: it.desc };
-      }).filter(it => {
-        if (it.item.code < 100000) return true;
-        const res = gProps.searchResult.value;
-        return res == undefined || res.has(it.item);
+        const enabled = item.code < 100000 || res == undefined || res.has(item);
+        if (enabled) filtered = false;
+        return { item, desc: it.desc, enabled };
       });
-    if (items.length)
+    if (!filtered)
       out.push({ items, time: linkZip.time, rev: linkZip.rev });
   }
   return out;
@@ -30,18 +30,20 @@ const filteredLinkZips = computed(() => {
     <li v-for="linkZip in filteredLinkZips" :class="{ rev: linkZip.rev }" :key="linkZip.time">
       {{ linkZip.rev ? "<=" : "=>" }}
       <template v-for="(it, index) in linkZip.items" :key="it.item.code">
-        <template v-if="index != 0">,</template>
-        <LinkItem :item="it.item" :desc="it.desc" />
+        <template v-if="index != 0">,<wbr /></template>
+        <LinkItem :item="it.item" :enabled="it.enabled"
+          :desc="it.desc != undefined ? [linkZip.time, it.desc] : undefined" />
       </template>
       &lt;{{ linkZip.time }}&gt;
     </li>
   </ul>
 </template>
 
-<style>
+<style scoped>
 .links {
-  color: green;
-  padding-left: 5ch;
+  color: darkgreen;
+  margin-left: 7ch;
+  text-indent: -3ch;
 }
 
 .links li.rev {

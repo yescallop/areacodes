@@ -35,7 +35,7 @@ pub struct CodeItem<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end: Option<u32>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub successors: Vec<Successor>,
+    pub succ: Vec<Successor>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<CodeItem<'a>>,
 }
@@ -46,7 +46,7 @@ pub struct Successor {
     pub time: u32,
     pub code: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub desc_id: Option<u32>,
+    pub desc: Option<u32>,
 }
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {

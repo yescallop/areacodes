@@ -8,13 +8,14 @@ export interface GlobalProps {
   },
   items: Map<number, Item[]>,
   predecessors: Map<number, Link[]>,
+  descriptions: Map<number, string[]>,
   searchResult: Ref<Set<Item> | undefined>,
   resolveLink: (code: number, time: number, rev: boolean) => Item,
 }
 
 export interface CodesJson {
   items: Item[],
-  descriptions: Record<number, string[]>,
+  descriptions: Record<string, string[]>,
 }
 
 export interface Item {
@@ -22,7 +23,7 @@ export interface Item {
   name: string,
   start: number,
   end?: number,
-  successors?: Link[],
+  succ?: Link[],
   children?: Item[],
 
   parent?: Item,
@@ -47,15 +48,16 @@ export enum Action {
 export interface Link {
   time?: number,
   code: number,
-  desc_id?: number,
-  desc?: string,
+  desc?: number,
 }
 
-export interface LinkZip {
-  codes: {
+export interface LinkCode {
     code: number,
-    desc?: string,
-  }[],
+    desc?: number,
+  }
+
+export interface LinkZip {
+  codes: LinkCode[],
   time: number,
   rev: boolean,
 }

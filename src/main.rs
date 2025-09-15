@@ -115,7 +115,7 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<BTreeMap<u32, Vec<String>
             entry.attr.extend(fd.attr.iter().map(|&code| Successor {
                 time: fd.time,
                 code,
-                desc_id: fd.desc_id,
+                desc: fd.desc_id,
             }));
         },
         |time, text| descriptions.entry(time).or_default().push(text.into()),
@@ -202,7 +202,7 @@ fn write_entry<'a>(
         name,
         start,
         end,
-        successors: attr
+        succ: attr
             .iter()
             .copied()
             .map(|mut su| {

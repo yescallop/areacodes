@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/no-mutating-props -->
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
-import type { GlobalProps, Item, LinkZip } from '@/common';
+import type { GlobalProps, Item, LinkCode, LinkZip } from '@/common';
 import { timeOrDefault, Action } from '@/common';
 import LinkGroup from './LinkGroup.vue';
 
@@ -55,7 +55,7 @@ function act() {
         isOpen.value = open;
       }
 
-      headLink.value!.focus({ preventScroll: open });
+      headLink.value?.focus({ preventScroll: open });
       if (open) document.fonts.ready.then(() => {
         headLink.value!.scrollIntoView({ behavior: "smooth" });
       });
@@ -67,7 +67,7 @@ function act() {
 interface LinkWithDirection {
   code: number,
   time: number,
-  desc?: string,
+  desc?: number,
   rev: boolean,
 }
 
@@ -86,7 +86,7 @@ function getLinks(): LinkWithDirection[] {
   }
 
   if (!gProps.options.hideSuccessors) {
-    item.successors?.forEach(link => {
+    item.succ?.forEach(link => {
       links.push({
         code: link.code,
         time: timeOrDefault(link, item),
@@ -108,18 +108,28 @@ function zipLinks(links: LinkWithDirection[]): LinkZip[] {
     return [];
   }
   const out: LinkZip[] = [];
-  let last = links[0]!;
-  let codes = [{ code: last.code, desc: last.desc }];
+  let prev = links[0]!;
+  let codes: LinkCode[] = [{ code: prev.code }];
+
   links.slice(1).forEach(link => {
-    if (link.time == last.time && link.rev == last.rev) {
-      codes.push({ code: link.code, desc: link.desc });
+    if (link.time == prev.time && link.rev == prev.rev) {
+      if (link.desc != prev.desc && prev.desc != undefined) {
+        codes[codes.length - 1]!.desc = prev.desc;
+      }
+      codes.push({ code: link.code });
     } else {
-      out.push({ codes, time: last.time, rev: last.rev });
-      codes = [{ code: link.code, desc: link.desc }];
-      last = link;
+      if (prev.desc != undefined) {
+        codes[codes.length - 1]!.desc = prev.desc;
+      }
+      out.push({ codes, time: prev.time, rev: prev.rev });
+      codes = [{ code: link.code }];
     }
+    prev = link;
   });
-  out.push({ codes, time: last.time, rev: last.rev });
+  if (prev.desc != undefined) {
+    codes[codes.length - 1]!.desc = prev.desc;
+  }
+  out.push({ codes, time: prev.time, rev: prev.rev });
   return out;
 }
 
@@ -145,18 +155,19 @@ function onKeyDown(e: KeyboardEvent) {
 
 <template>
   <li v-if="!isHidden">
-    <div :class="{ obsolete: item.end, leaf: !isFolder }">
-      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
+    <div class="item" :class="{ obsolete: item.end, leaf: !isFolder }">
+      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}] </span>
       <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scrollOpen" @keydown="onKeyDown">{{
         item.code
-      }}</a>
-      &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
-      <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
+      }}</a> <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
         <span class="hit">{{ gProps.options.searchText }}</span>{{
           item.name.substring(gProps.options.searchText.length)
         }}
       </template>
       <template v-else>{{ item.name }}</template>
+      <template v-if="item.start">
+        &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
+      </template>
     </div>
     <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
@@ -165,18 +176,23 @@ function onKeyDown(e: KeyboardEvent) {
   </li>
 </template>
 
-<style>
+<style scoped>
+.item {
+  text-indent: -4ch;
+  margin-left: 4ch;
+}
+
 .obsolete {
   color: gray;
 }
 
 .leaf {
+  text-indent: 0;
   margin-left: 4ch;
 }
 
 .toggle {
   user-select: none;
-  padding-right: 1ch;
 }
 
 .hit {

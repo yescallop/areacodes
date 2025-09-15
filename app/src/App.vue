@@ -14,48 +14,45 @@ const itemArr = ref<Item[]>([{
 const guide: Item = {
   code: 0,
   name: "凡例",
-  start: 1980,
+  start: 0,
   action: localStorage.getItem("closeGuide") == null ? Action.Open : undefined,
   children: [
     {
       code: 1,
-      name: "尖括号内数字为代码的启用年份",
+      name: "黑色为在用代码，后接启用时间",
       start: 1980,
     },
     {
       code: 2,
-      name: "灰色行表示已弃用的代码",
-      start: 1980,
-      end: 1990,
+      name: "灰色为弃用代码，后接在用时间",
+      start: 1970,
+      end: 1980,
     },
     {
       code: 3,
-      name: "以箭头起始的行描述新旧代码间的对应关系",
-      start: 1980,
-      action: Action.Open,
-      children: [
-        {
-          code: 4,
-          name: "向右的箭头表明代码的后继",
-          start: 1980,
-          successors: [{ code: 5, time: 1990, desc: "这是一条变更描述" }]
-        },
-        {
-          code: 5,
-          name: "向左的箭头表明代码的前身",
-          start: 1990,
-        },
-      ]
+      name: "向右的绿色箭头表明代码的后继",
+      start: 0,
+      succ: [{ code: 4, time: 1980, desc: 0 }]
+    },
+    {
+      code: 4,
+      name: "向左的红色箭头表明代码的前身",
+      start: 0,
+    },
+    {
+      code: 5,
+      name: "点击蓝色框内问号查看变更描述",
+      start: 0,
     },
     {
       code: 6,
-      name: "支持键盘操作（Tab、回车、退格）",
-      start: 1980,
+      name: "可键盘操作（Tab、回车、退格）",
+      start: 0,
     },
     {
       code: 7,
-      name: "仅支持代码、名称前缀搜索",
-      start: 1980,
+      name: "支持代码、名称前缀、时间搜索",
+      start: 0,
     }
   ]
 };
@@ -68,6 +65,9 @@ const options = reactive({
 
 const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
+const descriptions = new Map<number, string[]>();
+
+descriptions.set(1980, ["这是一条变更描述"]);
 
 let indexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
 const indexArr: { name: string; items: Item[]; }[] = [];
@@ -138,7 +138,7 @@ function resolveLink(code: number, time: number, rev: boolean): Item {
 }
 
 function addSuccessors(item: Item, after: number, res: Set<Item>) {
-  item.successors?.forEach(link => {
+  item.succ?.forEach(link => {
     const time = timeOrDefault(link, item);
     if (time > after) {
       const su = resolveLink(link.code, time, false);
@@ -177,21 +177,32 @@ watch(searchResult, res => {
   }
 });
 
-const props: GlobalProps = { options, items, predecessors, searchResult, resolveLink };
+const props: GlobalProps = {
+  options,
+  items,
+  predecessors,
+  descriptions,
+  searchResult,
+  resolveLink
+};
 provide('props', props);
 
-insertItem(guide, []);
+insertItem(guide);
 
 fetch(codesUrl)
   .then(resp => resp.json())
   .then((resp: CodesJson) => {
-    resp.items.forEach(item => insertItem(item, resp.descriptions));
+    resp.items.forEach(item => insertItem(item));
+    for (const [time, arr] of Object.entries(resp.descriptions)) {
+      descriptions.set(parseInt(time), arr);
+    }
+
     createIndexArr();
     scrollToHash();
     itemArr.value = resp.items;
   });
 
-function insertItem(item: Item, descriptions: Record<number, string[]>, parent?: Item) {
+function insertItem(item: Item, parent?: Item) {
   let arr = items.get(item.code);
   if (arr == undefined) {
     arr = [];
@@ -206,12 +217,7 @@ function insertItem(item: Item, descriptions: Record<number, string[]>, parent?:
   }
   arr.push(item);
 
-  item.successors?.forEach(link => {
-    const time = timeOrDefault(link, item);
-    if (link.desc_id != undefined) {
-      link.desc = descriptions[time]![link.desc_id];
-      link.desc_id = undefined;
-    }
+  item.succ?.forEach(link => {
     let links = predecessors.get(link.code);
     if (links == undefined) {
       links = [];
@@ -219,7 +225,7 @@ function insertItem(item: Item, descriptions: Record<number, string[]>, parent?:
     }
     links.push({ time: timeOrDefault(link, item), code: item.code, desc: link.desc });
   });
-  item.children?.forEach(child => insertItem(child, descriptions, item));
+  item.children?.forEach(child => insertItem(child, item));
   item.parent = parent;
 }
 
@@ -256,7 +262,12 @@ let itemToScrollTo: Item | undefined = undefined;
 
 function scrollToHash() {
   const item = locateHash();
-  if (item == undefined) return;
+  if (item === null) {
+    return;
+  } else if (item == undefined) {
+    options.searchText = decodeURIComponent(location.hash.substring(1));
+    return;
+  }
 
   if (options.searchText == "") {
     scrollToItem(item);
@@ -266,7 +277,7 @@ function scrollToHash() {
   }
 }
 
-function locateHash(): Item | undefined {
+function locateHash(): Item | null | undefined {
   if (!location.hash.length) return;
   const id = location.hash.substring(1);
   const parts = id.split(':');
@@ -276,6 +287,7 @@ function locateHash(): Item | undefined {
     const item = props.items.get(code)?.find(item => time == item.start);
     if (item != undefined) return item;
     window.alert("该代码不存在！");
+    return null;
   }
 }
 </script>
@@ -300,6 +312,7 @@ function locateHash(): Item | undefined {
   </header>
   <main>
     <label>搜索：<input type="search" v-model="options.searchText" /></label>
+    <a id="search-link" :href="'#' + encodeURIComponent(options.searchText)">[直链]</a>
     <ul class="top">
       <TreeItem v-for="it in itemArr" :item="it" :key="it.code * 10000 + it.start" />
     </ul>
@@ -329,7 +342,7 @@ a:hover {
 
 ul {
   list-style-type: none;
-  padding-left: 2ch;
+  padding-left: 1ch;
 }
 
 .top {
@@ -338,6 +351,11 @@ ul {
 
 #guide rt {
   display: none;
+}
+
+#search-link {
+  padding-left: 1ch;
+  color: darkblue;
 }
 
 #options {
