@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, provide, reactive, ref, watch } from 'vue';
-import type { CodesJson, GlobalProps, Item, Link } from './common';
-import { timeOrDefault, scrollToItem, Action } from './common';
+import type { CodesJson, GlobalProps, Item, Link, SearchResult } from './common';
+import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
-const itemArr = ref<Item[]>([{
-  code: 233333,
-  name: "加载中...",
-  start: new Date().getFullYear(),
-}]);
+const root = ref<Item>({
+  code: 0,
+  name: "中华人民共和国",
+  start: 1949,
+  root: true,
+});
 
 const guide: Item = {
   code: 0,
@@ -19,12 +20,12 @@ const guide: Item = {
   children: [
     {
       code: 1,
-      name: "黑色为在用代码，后接启用时间",
+      name: "圆括号内为在用时间",
       start: 1980,
     },
     {
       code: 2,
-      name: "灰色为弃用代码，后接在用时间",
+      name: "灰色为弃用代码",
       start: 1970,
       end: 1980,
     },
@@ -46,7 +47,7 @@ const guide: Item = {
     },
     {
       code: 6,
-      name: "可键盘操作（Tab、回车、退格）",
+      name: "支持键盘操作（加、减、退格）",
       start: 0,
     },
     {
@@ -69,8 +70,10 @@ const descriptions = new Map<number, string[]>();
 
 descriptions.set(1980, ["这是一条变更描述"]);
 
-let indexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
-const indexArr: { name: string; items: Item[]; }[] = [];
+let nameIndexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
+const nameIndex: { name: string; items: Item[]; }[] = [];
+
+const timeIndex: Set<number>[][] = [];
 
 const searchResult = computed(() => {
   const text = options.searchText;
@@ -78,100 +81,148 @@ const searchResult = computed(() => {
     return undefined;
   }
 
-  const res = new Set<Item>();
-  if (/^[1-9]\d(\d{2}){0,2}$/.test(text)) {
-    let code = parseInt(text);
-    while (code < 100000) code *= 100;
-    items.get(code)?.forEach(item => {
-      searchHit(item);
-      res.add(item);
-    });
+  const res: SearchResult = { items: new Set(), links: new Set() };
+  let start: number | undefined;
+  let end: number | undefined;
+
+  if (/^(19|20)\d{2}\.(\d+)?$/.test(text)) {
+    const parts = text.split('.');
+    const time = parseInt(parts[0]!);
+
+    const arr = timeIndex[time];
+    if (arr == undefined) return res;
+
+    const processLink = (link: number) => {
+      const [src, dst, time] = decodeLink(link);
+      for (const item of [resolve(src, time - 1)!, resolve(dst, time)!]) {
+        searchHit(item, false);
+        res.items.add(item);
+      }
+      res.links.add(link);
+    };
+
+    if (parts[1] == '') {
+      arr.forEach(subArr => subArr.forEach(processLink));
+    } else {
+      const idx = parseInt(parts[1]!);
+      if (idx <= 0) return res;
+      res.desc = [time, idx - 1];
+      arr[idx]?.forEach(processLink);
+    }
+  } else if (/^\d{6}(,\d{4}(-(\d{4})?)?)?$/.test(text)) {
+    let parts = text.split(',');
+    const code = parseInt(parts[0]!);
+
+    if (parts.length == 1) {
+      items.get(code)?.forEach(item => {
+        searchHit(item, true);
+        res.items.add(item);
+      });
+    } else {
+      parts = parts[1]!.split('-');
+      start = parseInt(parts[0]!);
+      if (parts.length == 1) {
+        end = start + 1;
+      } else if (parts[1] != '') {
+        end = parseInt(parts[1]!);
+      }
+
+      for (const item of resolveRange(code, start, end)) {
+        searchHit(item, true);
+        res.items.add(item);
+      }
+    }
   } else {
-    let i = binarySearch(indexArr, t => t.name.localeCompare(text));
-    while (i < indexArr.length) {
-      const { name, items } = indexArr[i]!;
+    let i = binarySearch(nameIndex, t => t.name.localeCompare(text));
+    while (i < nameIndex.length) {
+      const { name, items } = nameIndex[i]!;
       if (!name.startsWith(text)) break;
       items.forEach(item => {
-        searchHit(item);
-        res.add(item);
+        searchHit(item, true);
+        res.items.add(item);
       });
       i += 1;
     }
   }
 
-  for (const item of res) {
-    if (item.parent != undefined) res.add(item.parent);
+  if (res.items.size == 1) {
+    for (const item of res.items)
+      item.action = Action.OpenScroll;
+  }
+
+  for (const item of res.items) {
+    if (item.parent != undefined) res.items.add(item.parent);
     if (item.isSearchHit) {
       item.children?.forEach(child => {
-        if (res.has(child) && !child.isSearchHit) {
+        if (start && !inUseRange(child, start, end))
+          return;
+        if (res.items.has(child) && !child.isSearchHit) {
           // Move it to the end of the set in order to ensure
           // that its successors and predecessors are added.
-          res.delete(child);
+          res.items.delete(child);
         }
         child.isSearchHit = true;
-        res.add(child);
+        res.items.add(child);
       });
 
       if (!options.hideSuccessors)
-        addSuccessors(item, item.start, res);
+        addSuccessors(item, start ?? 0, res);
       if (!options.hidePredecessors)
-        addPredecessors(item, Infinity, res);
+        addPredecessors(item, end ?? Infinity, res);
       item.isSearchHit = undefined;
     }
   }
   return res;
 });
 
-function searchHit(item: Item) {
-  item.isSearchHit = true;
-  item.action = Action.Open;
+function searchHit(item: Item, mark: boolean) {
+  item.isSearchHit = mark;
   while (item.parent != undefined) {
     item.parent.action = Action.Open;
     item = item.parent;
   }
 }
 
-function resolveLink(code: number, time: number, rev: boolean): Item {
-  if (rev) time -= 1;
-  // The items are by default descending in time.
-  return items.get(code)!.find(item => time >= item.start)!;
+function resolve(code: number, time: number): Item | undefined {
+  return items.get(code)?.find(item => inUse(item, time));
 }
 
-function addSuccessors(item: Item, after: number, res: Set<Item>) {
+function resolveRange(code: number, start: number, end?: number): Item[] {
+  return items.get(code)?.filter(item => inUseRange(item, start, end)) ?? [];
+}
+
+function addSuccessors(item: Item, after: number, res: SearchResult) {
   item.succ?.forEach(link => {
     const time = timeOrDefault(link, item);
     if (time > after) {
-      const su = resolveLink(link.code, time, false);
-      res.add(su);
-      addSuccessors(su, time, res);
+      const succ = resolve(link.code, time)!;
+      res.items.add(succ);
+      res.links.add(encodeLink(item.code, link.code, time));
+      addSuccessors(succ, time, res);
     }
   });
 }
 
-function addPredecessors(item: Item, before: number, res: Set<Item>) {
+function addPredecessors(item: Item, before: number, res: SearchResult) {
   predecessors.get(item.code)?.forEach(link => {
     const time = link.time!;
-    if (time >= item.start && time < before && (item.end == undefined || time < item.end)) {
-      const pre = resolveLink(link.code, time, true);
-      res.add(pre);
-      addPredecessors(pre, time, res);
+    if (time < before && inUse(item, time)) {
+      const pred = resolve(link.code, time - 1)!;
+      res.items.add(pred);
+      res.links.add(encodeLink(link.code, item.code, time));
+      addPredecessors(pred, time, res);
     }
   });
 }
 
 watch(searchResult, res => {
   if (res == undefined) {
-    itemArr.value.forEach(item => {
+    root.value.children?.forEach(item => {
       item.action = Action.Close;
       if (item.act != undefined) item.act();
     });
-
-    if (itemToScrollTo != undefined) {
-      scrollToItem(itemToScrollTo);
-      itemToScrollTo = undefined;
-    }
   } else {
-    res.forEach(item => {
+    res.items.forEach(item => {
       if (item.act != undefined) item.act();
     });
   }
@@ -183,7 +234,7 @@ const props: GlobalProps = {
   predecessors,
   descriptions,
   searchResult,
-  resolveLink
+  resolve,
 };
 provide('props', props);
 
@@ -197,9 +248,9 @@ fetch(codesUrl)
       descriptions.set(parseInt(time), arr);
     }
 
-    createIndexArr();
-    scrollToHash();
-    itemArr.value = resp.items;
+    createIndex();
+    followHash();
+    root.value.children = resp.items;
   });
 
 function insertItem(item: Item, parent?: Item) {
@@ -210,10 +261,10 @@ function insertItem(item: Item, parent?: Item) {
   }
   arr.push(item);
 
-  arr = indexMap!.get(item.name);
+  arr = nameIndexMap!.get(item.name);
   if (arr == undefined) {
     arr = [];
-    indexMap!.set(item.name, arr);
+    nameIndexMap!.set(item.name, arr);
   }
   arr.push(item);
 
@@ -229,10 +280,31 @@ function insertItem(item: Item, parent?: Item) {
   item.parent = parent;
 }
 
-function createIndexArr() {
-  indexMap!.forEach((items, name) => indexArr.push({ name, items }));
-  indexMap = undefined;
-  indexArr.sort((a, b) => a.name.localeCompare(b.name));
+function createIndex() {
+  nameIndexMap!.forEach((items, name) => {
+    nameIndex.push({ name, items });
+
+    items.forEach(item => {
+      item.succ?.forEach(link => {
+        const time = timeOrDefault(link, item);
+        const idx = link.desc != undefined ? link.desc + 1 : 0;
+
+        let arr = timeIndex[time];
+        if (arr == undefined) {
+          arr = [new Set()];
+          timeIndex[time] = arr;
+        }
+        let subArr = arr[idx];
+        if (subArr == undefined) {
+          subArr = new Set();
+          arr[idx] = subArr;
+        }
+        subArr.add(encodeLink(item.code, link.code, time));
+      });
+    });
+  });
+  nameIndexMap = undefined;
+  nameIndex.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Stolen from `slice::binary_search_by` in Rust.
@@ -256,39 +328,32 @@ function binarySearch<T>(arr: T[], f: (t: T) => number): number {
   return left;
 }
 
-window.onhashchange = scrollToHash;
+window.onhashchange = followHash;
 
-let itemToScrollTo: Item | undefined = undefined;
-
-function scrollToHash() {
-  const item = locateHash();
-  if (item === null) {
-    return;
-  } else if (item == undefined) {
-    options.searchText = decodeURIComponent(location.hash.substring(1));
-    return;
-  }
-
-  if (options.searchText == "") {
-    scrollToItem(item);
-  } else {
-    itemToScrollTo = item;
-    options.searchText = "";
-  }
+function followHash() {
+  options.searchText = decodeURIComponent(location.hash.substring(1));
 }
 
-function locateHash(): Item | null | undefined {
-  if (!location.hash.length) return;
-  const id = location.hash.substring(1);
-  const parts = id.split(':');
-  if (parts.length == 2) {
-    const code = parseInt(parts[0]!);
-    const time = parseInt(parts[1]!);
-    const item = props.items.get(code)?.find(item => time == item.start);
-    if (item != undefined) return item;
-    window.alert("该代码不存在！");
-    return null;
-  }
+import markdownit from 'markdown-it';
+const md = markdownit();
+
+// https://github.com/markdown-it/markdown-it/blob/master/docs/architecture.md#renderer
+// Remember the old renderer if overridden, or proxy to the default renderer.
+const defaultRender = md.renderer.rules.link_open || function (tokens, idx, options, _env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+
+md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+  // Add a new `target` attribute, or replace the value of the existing one.
+  tokens[idx]!.attrSet('target', '_blank');
+
+  // Pass the token to the default renderer.
+  return defaultRender(tokens, idx, options, env, self);
+};
+
+function render([time, desc]: [number, number]): string {
+  const descStr = descriptions.get(time)![desc]!;
+  return md.render(descStr.replace(/^#/g, "##"));
 }
 </script>
 
@@ -306,29 +371,48 @@ function locateHash(): Item | null | undefined {
       <label><input type="checkbox" v-model="options.hideSuccessors" />隐藏后继</label>
       <label><input type="checkbox" v-model="options.hidePredecessors" />隐藏前身</label>
     </fieldset>
-    <ul id="guide" class="top">
+    <ul id="guide">
       <TreeItem :item="guide" />
     </ul>
   </header>
   <main>
-    <label>搜索：<input type="search" v-model="options.searchText" /></label>
-    <a id="search-link" :href="'#' + encodeURIComponent(options.searchText)">[直链]</a>
-    <ul class="top">
-      <TreeItem v-for="it in itemArr" :item="it" :key="it.code * 10000 + it.start" />
-    </ul>
+    <div id="search-bar">
+      <label>搜索：<input type="search" v-model="options.searchText" /></label>
+      <a id="search-link" :href="'#' + encodeURI(options.searchText)">[直链]</a>
+      <hr />
+    </div>
+    <TreeItem id="root" :item="root" />
+    <hr v-if="searchResult?.desc" />
+    <article v-if="searchResult?.desc" v-html="render(searchResult.desc)"></article>
   </main>
 </template>
 
 <style>
+html {
+  scroll-padding-top: 44px;
+}
+
 body {
   font-family: 'Roboto Mono', 'Noto Sans SC';
 }
 
 h1 {
   display: inline-block;
-  margin-left: 1ch;
-  margin-right: .5ch;
+  margin: 8px;
   font-size: x-large;
+}
+
+h2 {
+  font-size: large;
+}
+
+h2,
+p {
+  margin: 8px 0;
+}
+
+ol {
+  margin: 8px 0;
 }
 
 a {
@@ -336,7 +420,19 @@ a {
   text-decoration: none;
 }
 
+article {
+  font-family: 'Noto Sans SC';
+}
+
+article a {
+  color: darkblue;
+}
+
 a:hover {
+  text-decoration: underline;
+}
+
+a:focus:not(:focus-visible) {
   text-decoration: underline;
 }
 
@@ -345,16 +441,31 @@ ul {
   padding-left: 1ch;
 }
 
-.top {
+#guide {
   padding-left: 0;
+  margin-top: 8px;
+  margin-bottom: 0;
+  /* Make the focus ring appear above the search bar */
+  position: relative;
+  z-index: 1;
 }
 
 #guide rt {
   display: none;
 }
 
+#root {
+  padding-left: 0;
+  margin: 8px 0;
+}
+
+#root>ul {
+  padding-left: 0;
+  margin: 0;
+}
+
 #search-link {
-  padding-left: 1ch;
+  margin-left: 1ch;
   color: darkblue;
 }
 
@@ -364,5 +475,16 @@ ul {
 
 #options label:not(:last-child) {
   margin-right: 1ch;
+}
+
+#search-bar {
+  padding-top: 8px;
+  position: sticky;
+  top: 0;
+  background: white;
+}
+
+hr {
+  margin: 8px -8px;
 }
 </style>

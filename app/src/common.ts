@@ -9,8 +9,14 @@ export interface GlobalProps {
   items: Map<number, Item[]>,
   predecessors: Map<number, Link[]>,
   descriptions: Map<number, string[]>,
-  searchResult: Ref<Set<Item> | undefined>,
-  resolveLink: (code: number, time: number, rev: boolean) => Item,
+  searchResult: Ref<SearchResult | undefined>,
+  resolve: (code: number, time: number) => Item | undefined,
+}
+
+export interface SearchResult {
+  items: Set<Item>,
+  links: Set<number>,
+  desc?: [number, number],
 }
 
 export interface CodesJson {
@@ -26,6 +32,7 @@ export interface Item {
   succ?: Link[],
   children?: Item[],
 
+  root?: boolean,
   parent?: Item,
   action?: Action,
   act?: () => void,
@@ -39,10 +46,10 @@ export enum Action {
   Close,
   // Focus only.
   Focus,
+  // Open if the item is a folder and focus.
+  OpenScroll,
   // Open if the item is a folder, focus and scroll.
   OpenFocusScroll,
-  // Close and focus.
-  CloseFocus,
 }
 
 export interface Link {
@@ -52,9 +59,10 @@ export interface Link {
 }
 
 export interface LinkCode {
-    code: number,
-    desc?: number,
-  }
+  code: number,
+  desc?: number,
+  showDesc?: boolean,
+}
 
 export interface LinkZip {
   codes: LinkCode[],
@@ -64,6 +72,32 @@ export interface LinkZip {
 
 export function timeOrDefault(link: Link, item: Item): number {
   return link.time != undefined ? link.time : item.end!;
+}
+
+export function inUse(item: Item, time: number): boolean {
+  return time >= item.start && (item.end == undefined || time < item.end);
+}
+
+export function inUseRange(item: Item, start: number, end?: number): boolean {
+  if (end == undefined) {
+    return item.end == undefined || start < item.end;
+  } else if (item.end == undefined) {
+    return item.start < end;
+  } else {
+    return end > item.start && start < item.end;
+  }
+}
+
+export function encodeLink(src: number, dst: number, time: number): number {
+  return src * 1e10 + dst * 1e4 + time
+}
+
+export function decodeLink(n: number): [number, number, number] {
+  const time = n % 1e4;
+  n = Math.trunc(n / 1e4);
+  const dst = n % 1e6;
+  n = Math.trunc(n / 1e6);
+  return [n, dst, time];
 }
 
 export function scrollToItem(item: Item) {

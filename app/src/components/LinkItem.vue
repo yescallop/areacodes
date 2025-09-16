@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { inject } from 'vue';
-import { type Item, scrollToItem, Action } from '@/common';
+import { type Item, scrollToItem, Action, type GlobalProps } from '@/common';
 
 defineProps<{
   item: Item;
-  enabled: boolean;
+  enabled?: boolean;
   desc?: [number, number];
+  showDesc?: boolean;
 }>();
+
+const gProps = inject<GlobalProps>('props')!;
 
 const srcItem = inject<Item>('srcItem')!;
 
@@ -16,23 +19,17 @@ function onKeyDown(e: KeyboardEvent) {
     srcItem.act!();
   }
 }
-
-function pushSrc() {
-  const hash = `#${srcItem.code}:${srcItem.start}`;
-  if (hash != location.hash) {
-    history.pushState(null, "", hash);
-  }
-}
 </script>
 
 <template>
-  <a :class="{ disabled: !enabled }" :href="enabled ? `#${item.code}:${item.start}` : undefined"
-    @click.prevent="if (enabled) { pushSrc(); scrollToItem(item); }" @keydown="onKeyDown">
+  <a :class="{ disabled: !enabled }" href="javascript:"
+    @click.prevent="if (enabled) { scrollToItem(item); }" @keydown="onKeyDown">
     <ruby v-if="item.name != srcItem.name">{{ item.code }}<rt>{{
       item.name }}</rt></ruby>
     <template v-else>{{ item.code }}</template>
   </a>
-  <a v-if="desc != undefined" :href="`#${desc[0]}.${desc[1]}`" @click="pushSrc" class="desc">[?]</a>
+  <a v-if="showDesc && !gProps.searchResult.value?.desc" href="javascript:" class="desc"
+    @click="gProps.options.searchText = `${desc![0]}.${desc![1] + 1}`">[?]</a>
 </template>
 
 <style scoped>

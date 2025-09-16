@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
 import type { GlobalProps, Item, LinkCode, LinkZip } from '@/common';
-import { timeOrDefault, Action } from '@/common';
+import { timeOrDefault, Action, inUse } from '@/common';
 import LinkGroup from './LinkGroup.vue';
 
 const props = defineProps<{ item: Item; }>();
@@ -11,14 +11,15 @@ const gProps = inject<GlobalProps>('props')!;
 provide('srcItem', props.item);
 
 const isFolder = computed(() => props.item.children != undefined);
-const isOpen = ref(false);
-const isHidden = computed(() => {
-  if (props.item.code < 100000) return false;
-  const res = gProps.searchResult.value;
-  return res != undefined && !res.has(toRaw(props.item));
-});
+const isOpen = ref(props.item.root ?? false);
 const linkZips = computed(() => zipLinks(getLinks()));
 const headLink = ref<HTMLElement>();
+
+const filteredChildren = computed(() => props.item.children?.filter(item => {
+  if (item.code < 100000) return true;
+  const res = gProps.searchResult.value;
+  return res == undefined || res.items.has(toRaw(item));
+}));
 
 if (props.item.code == 0) {
   watch(isOpen, v => v ?
@@ -45,17 +46,13 @@ function act() {
     } else if (action == Action.Close) {
       isOpen.value = false;
     } else {
-      const hash = `#${props.item.code}:${props.item.start}`;
-      if (hash != location.hash) {
-        history.pushState(null, "", hash);
+      const open = action != Action.Focus;
+      if (open && isFolder.value) {
+        isOpen.value = true;
       }
 
-      const open = action == Action.OpenFocusScroll;
-      if (isFolder.value && action != Action.Focus) {
-        isOpen.value = open;
-      }
-
-      headLink.value?.focus({ preventScroll: open });
+      if (action != Action.OpenScroll)
+        headLink.value?.focus({ preventScroll: open });
       if (open) document.fonts.ready.then(() => {
         headLink.value!.scrollIntoView({ behavior: "smooth" });
       });
@@ -76,11 +73,10 @@ function getLinks(): LinkWithDirection[] {
   const predecessors = gProps.predecessors.get(item.code);
   let links: LinkWithDirection[];
   if (!gProps.options.hidePredecessors && predecessors != undefined) {
-    links = predecessors.filter(link => {
-      return link.time! >= item.start && (item.end == undefined || link.time! < item.end);
-    }).map(link => {
-      return { code: link.code, time: link.time!, desc: link.desc, rev: true };
-    });
+    links = predecessors.filter(link => inUse(item, link.time!))
+      .map(link => {
+        return { code: link.code, time: link.time!, desc: link.desc, rev: true };
+      });
   } else {
     links = [];
   }
@@ -109,33 +105,28 @@ function zipLinks(links: LinkWithDirection[]): LinkZip[] {
   }
   const out: LinkZip[] = [];
   let prev = links[0]!;
-  let codes: LinkCode[] = [{ code: prev.code }];
+  let codes: LinkCode[] = [{ code: prev.code, desc: prev.desc }];
 
   links.slice(1).forEach(link => {
     if (link.time == prev.time && link.rev == prev.rev) {
       if (link.desc != prev.desc && prev.desc != undefined) {
-        codes[codes.length - 1]!.desc = prev.desc;
+        codes[codes.length - 1]!.showDesc = true;
       }
-      codes.push({ code: link.code });
+      codes.push({ code: link.code, desc: link.desc });
     } else {
       if (prev.desc != undefined) {
-        codes[codes.length - 1]!.desc = prev.desc;
+        codes[codes.length - 1]!.showDesc = true;
       }
       out.push({ codes, time: prev.time, rev: prev.rev });
-      codes = [{ code: link.code }];
+      codes = [{ code: link.code, desc: link.desc }];
     }
     prev = link;
   });
   if (prev.desc != undefined) {
-    codes[codes.length - 1]!.desc = prev.desc;
+    codes[codes.length - 1]!.showDesc = true;
   }
   out.push({ codes, time: prev.time, rev: prev.rev });
   return out;
-}
-
-function scrollOpen() {
-  props.item.action = Action.OpenFocusScroll;
-  act();
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -149,29 +140,32 @@ function onKeyDown(e: KeyboardEvent) {
         parent.act!();
       }
     }
+  } else if (e.code == "Minus") {
+    isOpen.value = false;
+  } else if (e.code == "Equal") {
+    isOpen.value = true;
   }
 }
 </script>
 
 <template>
-  <li v-if="!isHidden">
-    <div class="item" :class="{ obsolete: item.end, leaf: !isFolder }">
-      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}] </span>
-      <a ref="headLink" :href="`#${item.code}:${item.start}`" @click.prevent="scrollOpen" @keydown="onKeyDown">{{
-        item.code
-      }}</a> <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
+  <li>
+    <div v-if="!item.root" class="item" :class="{ obsolete: item.end, leaf: !isFolder }">
+      <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
+      <a ref="headLink" href="javascript:"
+        @click="gProps.options.searchText = `${item.code},${item.start}-${item.end ?? ''}`" @keydown="onKeyDown">{{
+          item.code
+        }}</a> <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
         <span class="hit">{{ gProps.options.searchText }}</span>{{
           item.name.substring(gProps.options.searchText.length)
         }}
       </template>
       <template v-else>{{ item.name }}</template>
-      <template v-if="item.start">
-        &lt;{{ item.start }}{{ item.end ? "-" + item.end : "" }}&gt;
-      </template>
+      <template v-if="item.start">{{ ` (${item.start}-${item.end ?? ''})` }}</template>
     </div>
     <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
-      <TreeItem v-for="it in item.children" :item="it" :key="it.code * 10000 + it.start" />
+      <TreeItem v-for="it in filteredChildren" :item="it" :key="it.code * 10000 + it.start" />
     </ul>
   </li>
 </template>
@@ -193,6 +187,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 .toggle {
   user-select: none;
+  margin-right: 1ch;
 }
 
 .hit {

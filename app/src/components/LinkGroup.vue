@@ -1,23 +1,30 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import type { GlobalProps, LinkZip } from '@/common';
+import { encodeLink, type GlobalProps, type Item, type LinkZip } from '@/common';
 import LinkItem from './LinkItem.vue';
 
 const props = defineProps<{ linkZips: LinkZip[]; }>();
 
 const gProps = inject<GlobalProps>('props')!;
 
+const srcItem = inject<Item>('srcItem')!;
+
 const filteredLinkZips = computed(() => {
   const out = [];
-  const res = gProps.searchResult.value;
+  const links = gProps.searchResult.value?.links;
   for (const linkZip of props.linkZips) {
     let filtered = true;
     const items = linkZip.codes
       .map(it => {
-        const item = gProps.resolveLink(it.code, linkZip.time, linkZip.rev);
-        const enabled = item.code < 100000 || res == undefined || res.has(item);
+        let src = srcItem.code, dst = it.code;
+        if (linkZip.rev) [src, dst] = [dst, src];
+
+        const enabled = src < 100000 || links == undefined ||
+          links.has(encodeLink(src, dst, linkZip.time));
         if (enabled) filtered = false;
-        return { item, desc: it.desc, enabled };
+
+        const item = gProps.resolve(it.code, linkZip.time - (linkZip.rev ? 1 : 0))!;
+        return { item, desc: it.desc, showDesc: it.showDesc, enabled };
       });
     if (!filtered)
       out.push({ items, time: linkZip.time, rev: linkZip.rev });
@@ -32,7 +39,8 @@ const filteredLinkZips = computed(() => {
       <template v-for="(it, index) in linkZip.items" :key="it.item.code">
         <template v-if="index != 0">,<wbr /></template>
         <LinkItem :item="it.item" :enabled="it.enabled"
-          :desc="it.desc != undefined ? [linkZip.time, it.desc] : undefined" />
+          :desc="it.desc != undefined ? [linkZip.time, it.desc] : undefined"
+          :show-desc="it.showDesc" />
       </template>
       &lt;{{ linkZip.time }}&gt;
     </li>
