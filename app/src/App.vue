@@ -354,7 +354,7 @@ md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
 
 function render([time, desc]: [number, number]): string {
   const descStr = descriptions.get(time)![desc]!;
-  return md.render(descStr.replace(/^#/g, "##"));
+  return md.render(descStr.replace(/^#/gm, "##"));
 }
 </script>
 
