@@ -16,6 +16,7 @@ const guide: Item = {
   code: 0,
   name: "凡例",
   start: 0,
+  guide: true,
   action: localStorage.getItem("closeGuide") == null ? Action.Open : undefined,
   children: [
     {
@@ -371,7 +372,7 @@ function render([time, desc]: [number, number]): string {
       <label><input type="checkbox" v-model="options.hideSuccessors" />隐藏后继</label>
       <label><input type="checkbox" v-model="options.hidePredecessors" />隐藏前身</label>
     </fieldset>
-    <ul id="guide">
+    <ul class="top" id="guide">
       <TreeItem :item="guide" />
     </ul>
   </header>
@@ -381,7 +382,7 @@ function render([time, desc]: [number, number]): string {
       <a id="search-link" :href="'#' + encodeURI(options.searchText)">[直链]</a>
       <hr />
     </div>
-    <TreeItem id="root" :item="root" />
+    <ul class="top"><TreeItem id="root" :item="root" /></ul>
     <hr v-if="searchResult?.desc" />
     <article v-if="searchResult?.desc" v-html="render(searchResult.desc)"></article>
   </main>
@@ -441,8 +442,12 @@ ul {
   padding-left: 1ch;
 }
 
-#guide {
+.top {
   padding-left: 0;
+  margin: 8px 0;
+}
+
+#guide {
   margin-top: 8px;
   margin-bottom: 0;
   /* Make the focus ring appear above the search bar */
@@ -454,14 +459,8 @@ ul {
   display: none;
 }
 
-#root {
-  padding-left: 0;
-  margin: 8px 0;
-}
-
 #root>ul {
   padding-left: 0;
-  margin: 0;
 }
 
 #search-link {

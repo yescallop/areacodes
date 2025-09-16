@@ -21,7 +21,7 @@ const filteredChildren = computed(() => props.item.children?.filter(item => {
   return res == undefined || res.items.has(toRaw(item));
 }));
 
-if (props.item.code == 0) {
+if (props.item.guide) {
   watch(isOpen, v => v ?
     localStorage.removeItem("closeGuide") :
     localStorage.setItem("closeGuide", "true")

@@ -32,6 +32,7 @@ export interface Item {
   succ?: Link[],
   children?: Item[],
 
+  guide?: boolean,
   root?: boolean,
   parent?: Item,
   action?: Action,
