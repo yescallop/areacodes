@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject } from 'vue';
-import { type Item, scrollToItem, Action, type GlobalProps } from '@/common';
+import { type Item, exposeAnd, Action, type GlobalProps } from '@/common';
 
 const props = defineProps<{
   item: Item;
@@ -23,7 +23,7 @@ function onKeyDown(e: KeyboardEvent) {
 function onLinkClick() {
   if (props.enabled) {
     gProps.pushHistory(srcItem);
-    scrollToItem(props.item, Action.Focus);
+    exposeAnd(props.item, Action.Focus | Action.Scroll);
   }
 }
 

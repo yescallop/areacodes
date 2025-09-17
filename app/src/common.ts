@@ -96,8 +96,8 @@ export function decodeLink(n: number): [number, number, number] {
   return [n, dst, time];
 }
 
-export function scrollToItem(item: Item, action: Action) {
-  item.action = action | Action.Scroll;
+export function exposeAnd(item: Item, action: Action) {
+  item.action = action;
   while (item.act == undefined) {
     if (item.parent == undefined) return;
     item = item.parent;

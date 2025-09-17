@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue';
 import type { CodesJson, GlobalProps, Item, Link, SearchResult } from './common';
-import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, scrollToItem } from './common';
+import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, exposeAnd } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
@@ -208,15 +208,10 @@ watch(searchResult, res => {
       item.action = Action.Close;
       item.act?.();
     });
-  } else if (res.hits.size == 1) {
-    res.hits.forEach(item => scrollToItem(item, Action.Open));
   } else {
-    res.hits.forEach((item: Item | undefined) => {
-      while (item != undefined) {
-        item.action = Action.Open;
-        item = item.parent;
-      }
-    });
+    let action = Action.Open;
+    if (res.hits.size == 1) action |= Action.Scroll;
+    res.hits.forEach(item => exposeAnd(item, action));
   }
 });
 
@@ -234,7 +229,7 @@ function popHistory() {
   if (hist == undefined) return;
 
   options.searchText = hist.searchText;
-  nextTick(() => scrollToItem(hist.item, Action.Close | Action.Focus));
+  nextTick(() => exposeAnd(hist.item, Action.Close | Action.Focus | Action.Scroll));
 }
 
 const props: GlobalProps = {
