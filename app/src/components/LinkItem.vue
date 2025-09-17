@@ -57,7 +57,7 @@ rt {
   }
 
   @supports not (-moz-appearance: none) {
-    margin: 0 5.5px;
+    padding: 0 5.5px;
   }
 }
 
