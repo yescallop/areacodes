@@ -1,8 +1,8 @@
 <!-- eslint-disable vue/no-mutating-props -->
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, onUnmounted, onUpdated, provide, ref, toRaw, watch } from 'vue';
 import type { GlobalProps, Item, LinkCode, LinkZip } from '@/common';
-import { timeOrDefault, Action, inUse } from '@/common';
+import { timeOrDefault, Action, inUse, exposeItem } from '@/common';
 import LinkGroup from './LinkGroup.vue';
 
 const props = defineProps<{ item: Item; }>();
@@ -133,14 +133,9 @@ function zipLinks(links: LinkWithDirection[]): LinkZip[] {
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.code == "Backspace") {
-    if (isOpen.value) {
-      isOpen.value = false;
-    } else {
-      const parent = props.item.parent;
-      if (parent != undefined) {
-        parent.action = Action.Focus;
-        parent.act!();
-      }
+    const parent = props.item.parent;
+    if (parent != undefined) {
+      exposeItem(parent, Action.Focus);
     }
   } else if (e.code == "Minus") {
     isOpen.value = false;
@@ -156,6 +151,7 @@ function onClick() {
     gProps.pushHistory(item);
     gProps.options.searchText = text;
   }
+  nextTick(() => exposeItem(item, Action.Scroll));
 }
 </script>
 

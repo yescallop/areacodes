@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject } from 'vue';
-import { type Item, exposeAnd, Action, type GlobalProps } from '@/common';
+import { type Item, exposeItem, Action, type GlobalProps } from '@/common';
 
 const props = defineProps<{
   item: Item;
@@ -15,15 +15,14 @@ const srcItem = inject<Item>('srcItem')!;
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.code == "Backspace") {
-    srcItem.action = Action.Focus;
-    srcItem.act!();
+    exposeItem(srcItem, Action.Focus);
   }
 }
 
 function onLinkClick() {
   if (props.enabled) {
     gProps.pushHistory(srcItem);
-    exposeAnd(props.item, Action.Focus | Action.Scroll);
+    exposeItem(props.item, Action.Focus | Action.Scroll);
   }
 }
 

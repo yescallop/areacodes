@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue';
 import type { CodesJson, GlobalProps, Item, Link, SearchResult } from './common';
-import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, exposeAnd } from './common';
+import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, exposeItem } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
@@ -43,7 +43,7 @@ const guide: Item = {
     },
     {
       code: 5,
-      name: "点击蓝色框内问号查看变更描述",
+      name: "点击蓝色框内数字查看变更描述",
       start: 0,
     },
     {
@@ -210,9 +210,8 @@ watch(searchResult, res => {
       item.act?.();
     });
   } else {
-    const action = res.hits.size > 1 ?
-      Action.None : (Action.Open | Action.Scroll);
-    res.hits.forEach(item => exposeAnd(item, action));
+    const action = res.hits.size > 1 ? Action.None : Action.Open;
+    res.hits.forEach(item => exposeItem(item, action));
   }
 });
 
@@ -230,7 +229,7 @@ function popHistory() {
   if (hist == undefined) return;
 
   options.searchText = hist.searchText;
-  nextTick(() => exposeAnd(hist.item, Action.Close | Action.Focus | Action.Scroll));
+  nextTick(() => exposeItem(hist.item, Action.Close | Action.Focus | Action.Scroll));
 }
 
 const props: GlobalProps = {

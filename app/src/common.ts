@@ -98,7 +98,7 @@ export function decodeLink(n: number): [number, number, number] {
   return [n, dst, time];
 }
 
-export function exposeAnd(item: Item, action: Action) {
+export function exposeItem(item: Item, action: Action) {
   item.action = action;
   while (item.act == undefined) {
     if (item.parent == undefined) return;
