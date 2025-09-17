@@ -18,6 +18,7 @@ export interface SearchResult {
   items: Set<Item>,
   hits: Set<Item>,
   links: Set<number>,
+  showHits: boolean,
   desc?: [number, number],
 }
 

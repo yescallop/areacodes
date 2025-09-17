@@ -83,7 +83,7 @@ const searchResult = computed(() => {
   }
 
   const hits = new Set<Item>(), links = new Set<number>();
-  const res: SearchResult = { items: hits, hits, links };
+  const res: SearchResult = { items: hits, hits, links, showHits: true };
 
   let start = 1980;
   let end: number | undefined;
@@ -92,6 +92,7 @@ const searchResult = computed(() => {
 
   if (/^(19|20)\d{2}\.(\d+)?$/.test(text)) {
     extend = false;
+    res.showHits = false;
 
     const parts = text.split('.');
     const time = parseInt(parts[0]!);

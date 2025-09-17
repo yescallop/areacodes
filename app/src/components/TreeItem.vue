@@ -22,8 +22,9 @@ const children = computed(() => props.item.children?.filter(item => {
 }) ?? []);
 
 const isHit = computed(() => {
-  return !gProps.searchResult.value?.desc &&
-    gProps.searchResult.value?.hits?.has(toRaw(props.item));
+  const res = gProps.searchResult.value;
+  return res != undefined && res.showHits &&
+    res.hits?.has(toRaw(props.item));
 });
 
 if (props.item.guide) {
