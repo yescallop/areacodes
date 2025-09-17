@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, provide, reactive, ref, watch } from 'vue';
+import { computed, nextTick, provide, reactive, ref, watch } from 'vue';
 import type { CodesJson, GlobalProps, Item, Link, SearchResult } from './common';
-import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink } from './common';
+import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, scrollToItem } from './common';
 import TreeItem from './components/TreeItem.vue';
 import codesUrl from '../../codes.json?url';
 
@@ -69,7 +69,7 @@ const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
 const descriptions = new Map<number, string[]>();
 
-descriptions.set(1980, ["这是一条变更描述"]);
+descriptions.set(1980, ["这是一条变更描述，可点击返回"]);
 
 let nameIndexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
 const nameIndex: { name: string; items: Item[]; }[] = [];
@@ -82,11 +82,17 @@ const searchResult = computed(() => {
     return undefined;
   }
 
-  const res: SearchResult = { items: new Set(), links: new Set() };
-  let start: number | undefined;
+  const hits = new Set<Item>(), links = new Set<number>();
+  const res: SearchResult = { items: hits, hits, links };
+
+  let start = 1980;
   let end: number | undefined;
+  // Whether to recursively add successors and predecessors
+  let extend = true;
 
   if (/^(19|20)\d{2}\.(\d+)?$/.test(text)) {
+    extend = false;
+
     const parts = text.split('.');
     const time = parseInt(parts[0]!);
 
@@ -95,11 +101,9 @@ const searchResult = computed(() => {
 
     const processLink = (link: number) => {
       const [src, dst, time] = decodeLink(link);
-      for (const item of [resolve(src, time - 1)!, resolve(dst, time)!]) {
-        searchHit(item, false);
-        res.items.add(item);
-      }
-      res.links.add(link);
+      hits.add(resolve(src, time - 1)!);
+      hits.add(resolve(dst, time)!);
+      links.add(link);
     };
 
     if (parts[1] == '') {
@@ -107,18 +111,19 @@ const searchResult = computed(() => {
     } else {
       const idx = parseInt(parts[1]!);
       if (idx <= 0) return res;
-      res.desc = [time, idx - 1];
-      arr[idx]?.forEach(processLink);
+
+      const subArr = arr[idx];
+      if (subArr != undefined) {
+        subArr.forEach(processLink);
+        res.desc = [time, idx - 1];
+      }
     }
   } else if (/^\d{6}(,\d{4}(-(\d{4})?)?)?$/.test(text)) {
     let parts = text.split(',');
     const code = parseInt(parts[0]!);
 
     if (parts.length == 1) {
-      items.get(code)?.forEach(item => {
-        searchHit(item, true);
-        res.items.add(item);
-      });
+      items.get(code)?.forEach(item => hits.add(item));
     } else {
       parts = parts[1]!.split('-');
       start = parseInt(parts[0]!);
@@ -127,62 +132,43 @@ const searchResult = computed(() => {
       } else if (parts[1] != '') {
         end = parseInt(parts[1]!);
       }
-
-      for (const item of resolveRange(code, start, end)) {
-        searchHit(item, true);
-        res.items.add(item);
-      }
+      resolveRange(code, start, end).forEach(item => hits.add(item));
     }
   } else {
     let i = binarySearch(nameIndex, t => t.name.localeCompare(text));
     while (i < nameIndex.length) {
       const { name, items } = nameIndex[i]!;
       if (!name.startsWith(text)) break;
-      items.forEach(item => {
-        searchHit(item, true);
-        res.items.add(item);
-      });
+      items.forEach(item => hits.add(item));
       i += 1;
     }
   }
 
-  if (res.items.size == 1) {
-    for (const item of res.items)
-      item.action = Action.OpenScroll;
+  res.items = new Set(hits);
+  const succ = new Set<Item>(), pred = new Set<Item>();
+
+  if (extend) {
+    for (const item of res.items) {
+      item.children?.forEach(child => {
+        if (inUseRange(child, start, end))
+          res.items.add(child);
+      });
+      if (!options.hideSuccessors)
+        addSuccessors(item, start ?? 0, succ, links);
+      if (!options.hidePredecessors)
+        addPredecessors(item, end ?? Infinity, pred, links);
+    }
   }
 
-  for (const item of res.items) {
-    if (item.parent != undefined) res.items.add(item.parent);
-    if (item.isSearchHit) {
-      item.children?.forEach(child => {
-        if (start && !inUseRange(child, start, end))
-          return;
-        if (res.items.has(child) && !child.isSearchHit) {
-          // Move it to the end of the set in order to ensure
-          // that its successors and predecessors are added.
-          res.items.delete(child);
-        }
-        child.isSearchHit = true;
-        res.items.add(child);
-      });
+  succ.forEach(item => res.items.add(item));
+  pred.forEach(item => res.items.add(item));
 
-      if (!options.hideSuccessors)
-        addSuccessors(item, start ?? 0, res);
-      if (!options.hidePredecessors)
-        addPredecessors(item, end ?? Infinity, res);
-      item.isSearchHit = undefined;
-    }
+  for (const item of res.items) {
+    if (item.parent != undefined)
+      res.items.add(item.parent);
   }
   return res;
 });
-
-function searchHit(item: Item, mark: boolean) {
-  item.isSearchHit = mark;
-  while (item.parent != undefined) {
-    item.parent.action = Action.Open;
-    item = item.parent;
-  }
-}
 
 function resolve(code: number, time: number): Item | undefined {
   return items.get(code)?.find(item => inUse(item, time));
@@ -192,26 +178,26 @@ function resolveRange(code: number, start: number, end?: number): Item[] {
   return items.get(code)?.filter(item => inUseRange(item, start, end)) ?? [];
 }
 
-function addSuccessors(item: Item, after: number, res: SearchResult) {
+function addSuccessors(item: Item, after: number, items: Set<Item>, links: Set<number>) {
   item.succ?.forEach(link => {
     const time = timeOrDefault(link, item);
     if (time > after) {
       const succ = resolve(link.code, time)!;
-      res.items.add(succ);
-      res.links.add(encodeLink(item.code, link.code, time));
-      addSuccessors(succ, time, res);
+      items.add(succ);
+      links.add(encodeLink(item.code, link.code, time));
+      addSuccessors(succ, time, items, links);
     }
   });
 }
 
-function addPredecessors(item: Item, before: number, res: SearchResult) {
+function addPredecessors(item: Item, before: number, items: Set<Item>, links: Set<number>) {
   predecessors.get(item.code)?.forEach(link => {
     const time = link.time!;
     if (time < before && inUse(item, time)) {
       const pred = resolve(link.code, time - 1)!;
-      res.items.add(pred);
-      res.links.add(encodeLink(link.code, item.code, time));
-      addPredecessors(pred, time, res);
+      items.add(pred);
+      links.add(encodeLink(link.code, item.code, time));
+      addPredecessors(pred, time, items, links);
     }
   });
 }
@@ -220,14 +206,36 @@ watch(searchResult, res => {
   if (res == undefined) {
     root.value.children?.forEach(item => {
       item.action = Action.Close;
-      if (item.act != undefined) item.act();
+      item.act?.();
     });
+  } else if (res.hits.size == 1) {
+    res.hits.forEach(item => scrollToItem(item, Action.Open));
   } else {
-    res.items.forEach(item => {
-      if (item.act != undefined) item.act();
+    res.hits.forEach((item: Item | undefined) => {
+      while (item != undefined) {
+        item.action = Action.Open;
+        item = item.parent;
+      }
     });
   }
 });
+
+const history = ref<{
+  searchText: string;
+  item: Item;
+}[]>([]);
+
+function pushHistory(item: Item) {
+  history.value.push({ searchText: options.searchText, item });
+}
+
+function popHistory() {
+  const hist = history.value.pop();
+  if (hist == undefined) return;
+
+  options.searchText = hist.searchText;
+  nextTick(() => scrollToItem(hist.item, Action.Close | Action.Focus));
+}
 
 const props: GlobalProps = {
   options,
@@ -236,6 +244,7 @@ const props: GlobalProps = {
   descriptions,
   searchResult,
   resolve,
+  pushHistory,
 };
 provide('props', props);
 
@@ -339,17 +348,9 @@ import markdownit from 'markdown-it';
 const md = markdownit();
 
 // https://github.com/markdown-it/markdown-it/blob/master/docs/architecture.md#renderer
-// Remember the old renderer if overridden, or proxy to the default renderer.
-const defaultRender = md.renderer.rules.link_open || function (tokens, idx, options, _env, self) {
-  return self.renderToken(tokens, idx, options);
-};
-
-md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-  // Add a new `target` attribute, or replace the value of the existing one.
+md.renderer.rules.link_open = function (tokens, idx, options, _env, self) {
   tokens[idx]!.attrSet('target', '_blank');
-
-  // Pass the token to the default renderer.
-  return defaultRender(tokens, idx, options, env, self);
+  return self.renderToken(tokens, idx, options);
 };
 
 function render([time, desc]: [number, number]): string {
@@ -372,17 +373,20 @@ function render([time, desc]: [number, number]): string {
       <label><input type="checkbox" v-model="options.hideSuccessors" />隐藏后继</label>
       <label><input type="checkbox" v-model="options.hidePredecessors" />隐藏前身</label>
     </fieldset>
-    <ul class="top" id="guide">
+    <ul class="tree" id="guide">
       <TreeItem :item="guide" />
     </ul>
   </header>
   <main>
     <div id="search-bar">
-      <label>搜索：<input type="search" v-model="options.searchText" /></label>
-      <a id="search-link" :href="'#' + encodeURI(options.searchText)">[直链]</a>
+      <label><a class="button" :href="'#' + encodeURI(options.searchText)">搜索</a>：<input type="search" v-model="options.searchText" />
+      </label>
+      <a v-if="history.length" class="button" href="javascript:" @click="popHistory">[&lt;]</a>
       <hr />
     </div>
-    <ul class="top"><TreeItem id="root" :item="root" /></ul>
+    <ul class="tree" id="root">
+      <TreeItem :item="root" />
+    </ul>
     <hr v-if="searchResult?.desc" />
     <article v-if="searchResult?.desc" v-html="render(searchResult.desc)"></article>
   </main>
@@ -407,15 +411,6 @@ h2 {
   font-size: large;
 }
 
-h2,
-p {
-  margin: 8px 0;
-}
-
-ol {
-  margin: 8px 0;
-}
-
 a {
   color: inherit;
   text-decoration: none;
@@ -437,14 +432,15 @@ a:focus:not(:focus-visible) {
   text-decoration: underline;
 }
 
-ul {
+.tree {
   list-style-type: none;
-  padding-left: 1ch;
-}
-
-.top {
   padding-left: 0;
   margin: 8px 0;
+}
+
+.tree ul {
+  list-style-type: none;
+  padding-left: 1ch;
 }
 
 #guide {
@@ -459,12 +455,15 @@ ul {
   display: none;
 }
 
-#root>ul {
-  padding-left: 0;
+#root {
+  margin-left: -1ch;
 }
 
-#search-link {
+a.button:not(:first-child) {
   margin-left: 1ch;
+}
+
+a.button {
   color: darkblue;
 }
 

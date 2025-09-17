@@ -11,10 +11,12 @@ export interface GlobalProps {
   descriptions: Map<number, string[]>,
   searchResult: Ref<SearchResult | undefined>,
   resolve: (code: number, time: number) => Item | undefined,
+  pushHistory: (item: Item) => void,
 }
 
 export interface SearchResult {
   items: Set<Item>,
+  hits: Set<Item>,
   links: Set<number>,
   desc?: [number, number],
 }
@@ -37,20 +39,13 @@ export interface Item {
   parent?: Item,
   action?: Action,
   act?: () => void,
-  isSearchHit?: boolean,
 }
 
 export enum Action {
-  // Open only.
-  Open,
-  // Close only.
-  Close,
-  // Focus only.
-  Focus,
-  // Open if the item is a folder and focus.
-  OpenScroll,
-  // Open if the item is a folder, focus and scroll.
-  OpenFocusScroll,
+  Open = 1,
+  Close = 2,
+  Focus = 4,
+  Scroll = 8,
 }
 
 export interface Link {
@@ -101,8 +96,8 @@ export function decodeLink(n: number): [number, number, number] {
   return [n, dst, time];
 }
 
-export function scrollToItem(item: Item) {
-  item.action = Action.OpenFocusScroll;
+export function scrollToItem(item: Item, action: Action) {
+  item.action = action | Action.Scroll;
   while (item.act == undefined) {
     if (item.parent == undefined) return;
     item = item.parent;

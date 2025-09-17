@@ -10,16 +10,20 @@ const gProps = inject<GlobalProps>('props')!;
 
 provide('srcItem', props.item);
 
-const isFolder = computed(() => props.item.children != undefined);
+const isFolder = computed(() => children.value.length > 0);
 const isOpen = ref(props.item.root ?? false);
 const linkZips = computed(() => zipLinks(getLinks()));
 const headLink = ref<HTMLElement>();
 
-const filteredChildren = computed(() => props.item.children?.filter(item => {
+const children = computed(() => props.item.children?.filter(item => {
   if (item.code < 100000) return true;
   const res = gProps.searchResult.value;
   return res == undefined || res.items.has(toRaw(item));
-}));
+}) ?? []);
+
+const isHit = computed(() => {
+  return gProps.searchResult.value?.hits?.has(toRaw(props.item))
+});
 
 if (props.item.guide) {
   watch(isOpen, v => v ?
@@ -41,22 +45,18 @@ onUnmounted(() => props.item.act = undefined);
 function act() {
   const action = props.item.action;
   if (action != undefined) {
-    if (action == Action.Open) {
+    if (action & Action.Open) {
       isOpen.value = isFolder.value;
-    } else if (action == Action.Close) {
+    } else if (action & Action.Close) {
       isOpen.value = false;
-    } else {
-      const open = action != Action.Focus;
-      if (open && isFolder.value) {
-        isOpen.value = true;
-      }
-
-      if (action != Action.OpenScroll)
-        headLink.value?.focus({ preventScroll: open });
-      if (open) document.fonts.ready.then(() => {
-        headLink.value!.scrollIntoView({ behavior: "smooth" });
-      });
     }
+
+    const scroll = (action & Action.Scroll) != 0;
+    if (action & Action.Focus)
+      headLink.value?.focus({ preventScroll: scroll });
+    if (scroll) document.fonts.ready.then(() => {
+      headLink.value?.scrollIntoView({ behavior: "smooth" });
+    });
     props.item.action = undefined;
   }
 }
@@ -146,34 +146,40 @@ function onKeyDown(e: KeyboardEvent) {
     isOpen.value = true;
   }
 }
+
+function onClick() {
+  const item = props.item;
+  const text = `${item.code},${item.start}-${item.end ?? ''}`;
+  if (gProps.options.searchText != text) {
+    gProps.pushHistory(item);
+    gProps.options.searchText = text;
+  }
+}
 </script>
 
 <template>
   <li>
-    <div v-if="!item.root" class="item" :class="{ obsolete: item.end, leaf: !isFolder }">
+    <div v-if="!item.root" :class="{ obsolete: item.end, leaf: !isFolder, hit: isHit }">
       <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
       <a ref="headLink" href="javascript:"
-        @click="gProps.options.searchText = `${item.code},${item.start}-${item.end ?? ''}`" @keydown="onKeyDown">{{
-          item.code
-        }}</a> <template v-if="gProps.options.searchText && item.name.startsWith(gProps.options.searchText)">
-        <span class="hit">{{ gProps.options.searchText }}</span>{{
-          item.name.substring(gProps.options.searchText.length)
-        }}
-      </template>
-      <template v-else>{{ item.name }}</template>
+        @click="onClick" @keydown="onKeyDown">{{ item.code }}</a> {{ item.name }}
       <template v-if="item.start">{{ ` (${item.start}-${item.end ?? ''})` }}</template>
     </div>
     <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
-      <TreeItem v-for="it in filteredChildren" :item="it" :key="it.code * 10000 + it.start" />
+      <TreeItem v-for="it in children" :item="it" :key="it.code * 10000 + it.start" />
     </ul>
   </li>
 </template>
 
 <style scoped>
-.item {
+div {
   text-indent: -4ch;
   margin-left: 4ch;
+}
+
+.hit::after {
+  content: " *";
 }
 
 .obsolete {
@@ -188,9 +194,5 @@ function onKeyDown(e: KeyboardEvent) {
 .toggle {
   user-select: none;
   margin-right: 1ch;
-}
-
-.hit {
-  text-decoration: underline;
 }
 </style>

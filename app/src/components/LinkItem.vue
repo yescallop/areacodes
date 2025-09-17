@@ -2,7 +2,7 @@
 import { inject } from 'vue';
 import { type Item, scrollToItem, Action, type GlobalProps } from '@/common';
 
-defineProps<{
+const props = defineProps<{
   item: Item;
   enabled?: boolean;
   desc?: [number, number];
@@ -19,17 +19,34 @@ function onKeyDown(e: KeyboardEvent) {
     srcItem.act!();
   }
 }
+
+function onLinkClick() {
+  if (props.enabled) {
+    gProps.pushHistory(srcItem);
+    scrollToItem(props.item, Action.Focus);
+  }
+}
+
+function onDescClick() {
+  gProps.pushHistory(srcItem);
+  const [time, desc] = props.desc!;
+  gProps.options.searchText = `${time}.${desc + 1}`;
+}
 </script>
 
 <template>
-  <a :class="{ disabled: !enabled }" href="javascript:"
-    @click.prevent="if (enabled) { scrollToItem(item); }" @keydown="onKeyDown">
+  <a :class="{ disabled: !enabled }"
+    :href="props.enabled ? 'javascript:' : undefined"
+    @click="onLinkClick" @keydown="onKeyDown">
     <ruby v-if="item.name != srcItem.name">{{ item.code }}<rt>{{
       item.name }}</rt></ruby>
     <template v-else>{{ item.code }}</template>
   </a>
-  <a v-if="showDesc && !gProps.searchResult.value?.desc" href="javascript:" class="desc"
-    @click="gProps.options.searchText = `${desc![0]}.${desc![1] + 1}`">[?]</a>
+  <sup>
+    <a v-if="showDesc && !gProps.searchResult.value?.desc"
+      href="javascript:" class="desc"
+      @click="onDescClick">[{{ desc![1] + 1 }}]</a>
+  </sup>
 </template>
 
 <style scoped>
