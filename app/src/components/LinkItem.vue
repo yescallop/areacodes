@@ -41,9 +41,8 @@ function onDescClick() {
       item.name }}</rt></ruby>
     <template v-else>{{ item.code }}</template>
   </a>
-  <sup>
-    <a v-if="showDesc && !gProps.searchResult.value?.desc"
-      href="javascript:" class="desc"
+  <sup v-if="showDesc && !gProps.searchResult.value?.desc">
+    <a href="javascript:" class="desc"
       @click="onDescClick">[{{ desc![1] + 1 }}]</a>
   </sup>
 </template>
