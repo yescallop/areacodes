@@ -22,7 +22,8 @@ const children = computed(() => props.item.children?.filter(item => {
 }) ?? []);
 
 const isHit = computed(() => {
-  return gProps.searchResult.value?.hits?.has(toRaw(props.item))
+  return !gProps.searchResult.value?.desc &&
+    gProps.searchResult.value?.hits?.has(toRaw(props.item));
 });
 
 if (props.item.guide) {
@@ -161,9 +162,11 @@ function onClick() {
   <li>
     <div v-if="!item.root" :class="{ obsolete: item.end, leaf: !isFolder, hit: isHit }">
       <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
-      <a ref="headLink" href="javascript:"
-        @click="onClick" @keydown="onKeyDown">{{ item.code }}</a> {{ item.name }}
-      <template v-if="item.start">{{ ` (${item.start}-${item.end ?? ''})` }}</template>
+      <span class="title">
+        <a ref="headLink" href="javascript:"
+          @click="onClick" @keydown="onKeyDown">{{ item.code }}</a> {{ item.name }}
+        <template v-if="item.start">{{ ` (${item.start}-${item.end ?? ''})` }}</template>
+      </span>
     </div>
     <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
@@ -178,8 +181,10 @@ div {
   margin-left: 4ch;
 }
 
-.hit::after {
-  content: " *";
+.hit>.title {
+  outline: 1px solid #4dabf7;
+  border-radius: 3px;
+  box-shadow: 0 0 3px #4dabf7;
 }
 
 .obsolete {

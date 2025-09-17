@@ -69,7 +69,7 @@ const items = new Map<number, Item[]>();
 const predecessors = new Map<number, Link[]>();
 const descriptions = new Map<number, string[]>();
 
-descriptions.set(1980, ["这是一条变更描述，可点击返回"]);
+descriptions.set(1980, ["这是一条变更描述，可点击返回。"]);
 
 let nameIndexMap: Map<string, Item[]> | undefined = new Map<string, Item[]>();
 const nameIndex: { name: string; items: Item[]; }[] = [];
@@ -209,8 +209,8 @@ watch(searchResult, res => {
       item.act?.();
     });
   } else {
-    let action = Action.Open;
-    if (res.hits.size == 1) action |= Action.Scroll;
+    const action = res.hits.size > 1 ?
+      Action.None : (Action.Open | Action.Scroll);
     res.hits.forEach(item => exposeAnd(item, action));
   }
 });

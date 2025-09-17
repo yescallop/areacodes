@@ -42,6 +42,7 @@ export interface Item {
 }
 
 export enum Action {
+  None = 0,
   Open = 1,
   Close = 2,
   Focus = 4,
