@@ -377,12 +377,11 @@ function render([time, desc]: [number, number]): string {
       <label><a class="button" :href="'#' + encodeURI(options.searchText)">搜索</a>：<input type="search" v-model="options.searchText" />
       </label>
       <a v-if="history.length" class="button" href="javascript:" @click="popHistory">[&lt;]</a>
-      <hr />
     </div>
+    <div id="spacer"></div>
     <ul class="tree" id="root">
       <TreeItem :item="root" />
     </ul>
-    <hr v-if="searchResult?.desc" />
     <article v-if="searchResult?.desc" v-html="render(searchResult.desc)"></article>
   </main>
 </template>
@@ -423,8 +422,12 @@ a:hover {
   text-decoration: underline;
 }
 
-a:focus:not(:focus-visible) {
-  text-decoration: underline;
+a:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 1px #4dabf7,
+    0 0 3px #4dabf7;
+  border-radius: 2px;
 }
 
 .tree {
@@ -471,13 +474,25 @@ a.button {
 }
 
 #search-bar {
-  padding-top: 8px;
+  margin: 0 -8px;
+  padding: 8px;
+  border-bottom: 1px solid gray;
   position: sticky;
   top: 0;
   background: white;
 }
 
-hr {
-  margin: 8px -8px;
+#spacer {
+  height: calc(100vh - 42px);
+  margin-bottom: calc(42px - 100vh);
+  position: sticky;
+  top: 42px;
+  z-index: -1;
+}
+
+article {
+  margin: 0 -8px;
+  padding: 0 8px;
+  border-top: 1px solid gray;
 }
 </style>

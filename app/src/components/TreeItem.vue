@@ -57,7 +57,7 @@ function act() {
     if (action & Action.Focus)
       headLink.value?.focus({ preventScroll: scroll });
     if (scroll) document.fonts.ready.then(() => {
-      headLink.value?.scrollIntoView({ behavior: "smooth" });
+      headLink.value?.scrollIntoView();
     });
     props.item.action = undefined;
   }
@@ -146,11 +146,9 @@ function onKeyDown(e: KeyboardEvent) {
 
 function onClick() {
   const item = props.item;
-  const text = `${item.code},${item.start}-${item.end ?? ''}`;
-  if (gProps.options.searchText != text) {
-    gProps.pushHistory(item);
-    gProps.options.searchText = text;
-  }
+  gProps.pushHistory(item);
+  gProps.options.searchText =
+    `${item.code},${item.start}-${item.end ?? ''}`;
   nextTick(() => exposeItem(item, Action.Scroll));
 }
 </script>
@@ -159,11 +157,10 @@ function onClick() {
   <li>
     <div v-if="!item.root" :class="{ obsolete: item.end, leaf: !isFolder, hit: isHit }">
       <span v-if="isFolder" class="toggle" @click="isOpen = !isOpen">[{{ isOpen ? '-' : '+' }}]</span>
-      <span class="title">
-        <a ref="headLink" href="javascript:"
-          @click="onClick" @keydown="onKeyDown">{{ item.code }}</a> {{ item.name }}
+      <a ref="headLink" href="javascript:"
+        @click="onClick" @keydown="onKeyDown">{{ item.code }} {{ item.name }}
         <template v-if="item.start">{{ ` (${item.start}-${item.end ?? ''})` }}</template>
-      </span>
+      </a>
     </div>
     <LinkGroup :link-zips="linkZips" />
     <ul v-if="isOpen">
@@ -178,10 +175,8 @@ div {
   margin-left: 4ch;
 }
 
-.hit>.title {
-  outline: 1px solid #4dabf7;
-  border-radius: 3px;
-  box-shadow: 0 0 3px #4dabf7;
+.hit>a {
+  font-weight: 600;
 }
 
 .obsolete {
