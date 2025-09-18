@@ -483,8 +483,8 @@ a.button {
 }
 
 #spacer {
-  height: calc(100vh - 42px);
-  margin-bottom: calc(42px - 100vh);
+  height: calc(100dvh - 42px);
+  margin-bottom: calc(42px - 100dvh);
   position: sticky;
   top: 42px;
   z-index: -1;
