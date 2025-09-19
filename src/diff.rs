@@ -407,9 +407,9 @@ fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
             "." => Selector::CurCode,
             ".." => Selector::ParentCode,
             _ => {
-                let parent = if let Some((name, rest)) = sel.split_once('/') {
-                    sel = rest;
-                    Some(name)
+                let parent = if let Some((name, rest)) = sel.split_once('(') {
+                    sel = name;
+                    Some(rest.strip_suffix(')')?)
                 } else {
                     None
                 };
