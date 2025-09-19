@@ -414,7 +414,7 @@ fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
                     None
                 };
 
-                if sel == "#" {
+                if sel == "_" {
                     sel = name;
                 } else if sel == name {
                     println!("unnecessary repetition: {name}");
