@@ -89,7 +89,7 @@ pub fn read_data(path: &impl AsRef<Path>, mut f: impl FnMut(u32, String)) -> Res
             .get(0..6)
             .and_then(|s| s.parse().ok())
             .unwrap_or_else(|| panic!("invalid line at {file_name}:{line_i}"));
-        assert_eq!(line.as_bytes()[6], b'\t');
+        assert_eq!(line.as_bytes()[6], b' ');
         f(code, line[7..].into());
     })
 }

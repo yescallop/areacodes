@@ -361,7 +361,7 @@ fn parse_line(line: &str) -> Option<Line<'_>> {
 
     let code = line[1..7].parse().ok()?;
 
-    if line.as_bytes()[7] != b'\t' {
+    if line.as_bytes()[7] != b' ' {
         return None;
     }
 
