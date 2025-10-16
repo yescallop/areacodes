@@ -23,7 +23,7 @@ const children = computed(() => props.item.children?.filter(item => {
 
 const isHit = computed(() => {
   const res = gProps.searchResult.value;
-  return res != undefined && res.showHits &&
+  return res != undefined && res.time == undefined &&
     res.hits?.has(toRaw(props.item));
 });
 

@@ -12,14 +12,15 @@ export interface GlobalProps {
   searchResult: Ref<SearchResult | undefined>,
   resolve: (code: number, time: number) => Item | undefined,
   pushHistory: (item: Item) => void,
+  scrollToDesc: () => void,
 }
 
 export interface SearchResult {
   items: Set<Item>,
   hits: Set<Item>,
   links: Set<number>,
-  showHits: boolean,
-  desc?: [number, number],
+  time?: number,
+  desc?: number,
 }
 
 export interface CodesJson {

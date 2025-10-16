@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, reactive, ref, watch } from 'vue';
+import { computed, nextTick, provide, reactive, ref, useTemplateRef, watch } from 'vue';
 import type { CodesJson, GlobalProps, Item, Link, SearchResult } from './common';
 import { timeOrDefault, Action, inUse, inUseRange, encodeLink, decodeLink, exposeItem } from './common';
 import TreeItem from './components/TreeItem.vue';
@@ -83,7 +83,7 @@ const searchResult = computed(() => {
   }
 
   const hits = new Set<Item>(), links = new Set<number>();
-  const res: SearchResult = { items: hits, hits, links, showHits: true };
+  const res: SearchResult = { items: hits, hits, links };
 
   let start = 1980;
   let end: number | undefined;
@@ -92,12 +92,11 @@ const searchResult = computed(() => {
 
   if (/^(19|20)\d{2}\.(\d+)?$/.test(text)) {
     extend = false;
-    res.showHits = false;
 
     const parts = text.split('.');
-    const time = parseInt(parts[0]!);
+    res.time = parseInt(parts[0]!);
 
-    const arr = timeIndex[time];
+    const arr = timeIndex[res.time];
     if (arr == undefined) return res;
 
     const processLink = (link: number) => {
@@ -116,7 +115,7 @@ const searchResult = computed(() => {
       const subArr = arr[idx];
       if (subArr != undefined) {
         subArr.forEach(processLink);
-        res.desc = [time, idx - 1];
+        res.desc = idx - 1;
       }
     }
   } else if (/^\d{6}(,\d{4}(-(\d{4})?)?)?$/.test(text)) {
@@ -232,6 +231,12 @@ function popHistory() {
   nextTick(() => exposeItem(hist.item, Action.Close | Action.Focus | Action.Scroll));
 }
 
+const descArticle = useTemplateRef('desc');
+
+function scrollToDesc() {
+  descArticle.value?.scrollIntoView();
+}
+
 const props: GlobalProps = {
   options,
   items,
@@ -240,6 +245,7 @@ const props: GlobalProps = {
   searchResult,
   resolve,
   pushHistory,
+  scrollToDesc,
 };
 provide('props', props);
 
@@ -348,7 +354,7 @@ md.renderer.rules.link_open = function (tokens, idx, options, _env, self) {
   return self.renderToken(tokens, idx, options);
 };
 
-function render([time, desc]: [number, number]): string {
+function render(time: number, desc: number): string {
   const descStr = descriptions.get(time)![desc]!;
   return md.render(descStr.replace(/^#/gm, "##"));
 }
@@ -379,10 +385,12 @@ function render([time, desc]: [number, number]): string {
       <a v-if="history.length" class="button" href="javascript:" @click="popHistory">[&lt;]</a>
     </div>
     <div id="spacer"></div>
+    <article ref="desc"
+      v-if="searchResult?.time && searchResult.desc != undefined"
+      v-html="render(searchResult.time, searchResult.desc)" />
     <ul class="tree" id="root">
       <TreeItem :item="root" />
     </ul>
-    <article v-if="searchResult?.desc" v-html="render(searchResult.desc)"></article>
   </main>
 </template>
 
@@ -493,6 +501,6 @@ a.button {
 article {
   margin: 0 -8px;
   padding: 0 8px;
-  border-top: 1px solid gray;
+  border-bottom: 1px solid gray;
 }
 </style>

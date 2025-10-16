@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject } from 'vue';
+import { inject, nextTick } from 'vue';
 import { type Item, exposeItem, Action, type GlobalProps } from '@/common';
 
 const props = defineProps<{
@@ -30,6 +30,7 @@ function onDescClick() {
   gProps.pushHistory(srcItem);
   const [time, desc] = props.desc!;
   gProps.options.searchText = `${time}.${desc + 1}`;
+  nextTick(gProps.scrollToDesc);
 }
 </script>
 
