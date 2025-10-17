@@ -85,7 +85,7 @@ const searchResult = computed(() => {
   const hits = new Set<Item>(), links = new Set<number>();
   const res: SearchResult = { items: hits, hits, links };
 
-  let start = 1980;
+  let start = 1984;
   let end: number | undefined;
   // Whether to recursively add successors and predecessors
   let extend = true;
