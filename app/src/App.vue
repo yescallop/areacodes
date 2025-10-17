@@ -346,7 +346,7 @@ function followHash() {
 }
 
 import markdownit from 'markdown-it';
-const md = markdownit();
+const md = markdownit({ breaks: true });
 
 // https://github.com/markdown-it/markdown-it/blob/master/docs/architecture.md#renderer
 md.renderer.rules.link_open = function (tokens, idx, options, _env, self) {
@@ -356,7 +356,13 @@ md.renderer.rules.link_open = function (tokens, idx, options, _env, self) {
 
 function render(time: number, desc: number): string {
   const descStr = descriptions.get(time)![desc]!;
-  return md.render(descStr.replace(/^#/gm, "##"));
+  return md.render(descStr
+    .replace(/^#/gm, "##")
+    .replace(/《国务院公报》(\d+)年第(\d+)号第(\d+)(-\d+)?页/g, (match, year, no, page) => {
+      no = no.padStart(2, "0");
+      return `[${match}](https://www.gov.cn/gongbao/shuju/${year}/gwyb${year}${no}.pdf#page=${page})`;
+    })
+  );
 }
 </script>
 
