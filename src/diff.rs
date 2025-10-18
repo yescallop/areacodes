@@ -65,6 +65,7 @@ pub fn process_diff(
                         desc_id = Some(desc_counter);
                         desc_counter += 1;
                     }
+                    assert!(desc_id.is_some(), "undescribed change at {file_stem}.diff:{line_i}");
                     line
                 }
                 Line::Comment(comment) => {
@@ -77,6 +78,9 @@ pub fn process_diff(
                     return;
                 }
                 Line::Empty => {
+                    if !desc.is_empty() {
+                        println!("Dangling description:\n{desc}");
+                    }
                     desc.clear();
                     desc_id = None;
                     return;
