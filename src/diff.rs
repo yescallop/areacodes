@@ -46,7 +46,6 @@ pub fn process_diff(
 
         let time = dst_year.parse().unwrap();
 
-        let mut described = false;
         let mut desc = String::new();
         let mut desc_id = None;
         let mut desc_counter = 0;
@@ -65,16 +64,11 @@ pub fn process_diff(
                         desc_id = Some(desc_counter);
                         desc_counter += 1;
                     }
-                    assert!(desc_id.is_some(), "undescribed change at {file_stem}.diff:{line_i}");
                     line
                 }
                 Line::Comment(comment) => {
-                    if comment == "![described]" {
-                        described = true;
-                    } else if described {
-                        desc.push_str(comment.trim_start());
-                        desc.push('\n');
-                    }
+                    desc.push_str(comment.trim_start());
+                    desc.push('\n');
                     return;
                 }
                 Line::Empty => {
@@ -90,7 +84,10 @@ pub fn process_diff(
             let code = line.code;
             let name = line.name;
 
-            assert!(!described || desc_id.is_some(), "{code}: no description");
+            assert!(
+                desc_id.is_some(),
+                "undescribed change at {file_stem}.diff:{line_i}"
+            );
 
             if line.transfer {
                 let src_name = src.name_by_code(code);
