@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     collections::{BTreeSet, HashMap, HashSet},
     io,
 };
@@ -110,10 +109,10 @@ pub fn process_diff(
                 assert!(codes_dst.remove(&code), "{code}: duplicate addition");
             }
 
-            let (table, origin) = if line.fwd { (&dst, &src) } else { (&src, &dst) };
+            let (target, origin) = if line.fwd { (&dst, &src) } else { (&src, &dst) };
 
             attr.clear();
-            select(table, origin, &mut rem, &line, &mut attr);
+            select(target, origin, &mut rem, &line, &mut attr);
 
             let has_children = origin.has_children(code);
             if has_children {
@@ -177,18 +176,8 @@ pub fn parent(code: u32) -> u32 {
     }
 }
 
-fn code_dist(a: u32, b: u32) -> u32 {
-    if a / 100 == b / 100 {
-        1
-    } else if a / 10000 == b / 10000 {
-        2
-    } else {
-        3
-    }
-}
-
 fn select(
-    table: &DataTable,
+    target: &DataTable,
     origin: &DataTable,
     rem: &mut HashMap<i32, HashSet<i32>>,
     line: &ChangeLine<'_>,
@@ -197,72 +186,81 @@ fn select(
     let code = line.code;
 
     for sel in line.attr.iter().flatten() {
-        let mut res_code;
-        match sel {
-            Selector::Name { name, parent } => {
-                let sel_codes = match table.codes_by_name(name) {
-                    Some(codes) => codes,
-                    None => panic!("{name}@{code}: not found"),
+        let sel_code = match *sel {
+            Selector::Name(mut sel_name) => 'sel: {
+                if sel_name == "_" {
+                    sel_name = line.name;
+                }
+
+                let sel_codes = target.codes_by_name(sel_name);
+                if let &[code] = sel_codes {
+                    break 'sel code;
+                }
+
+                let sel_name_extended;
+                if sel_codes.len() > 1 {
+                    let parent_code_origin = origin.parent_code(code);
+                    let parent_name = origin
+                        .name_by_code(parent_code_origin)
+                        .expect("parent should have name");
+
+                    sel_name_extended = format!("{parent_name}{sel_name}");
+                    sel_name = &sel_name_extended;
+                }
+
+                let mut parts = None;
+
+                let mut chars = sel_name.chars();
+                while chars.next_back().is_some() {
+                    let prefix = chars.as_str();
+
+                    let parent_codes = target.codes_by_name(prefix);
+                    if parent_codes.len() > 1 {
+                        panic!("{prefix}: multiple records found");
+                    } else if parent_codes.len() == 1 {
+                        assert!(parts.is_none(), "{sel_name}: ambiguous name");
+                        parts = Some((parent_codes[0], &sel_name[prefix.len()..]));
+                    }
+                }
+
+                let Some((parent_code, name)) = parts else {
+                    panic!("{sel_name}: not found");
                 };
 
-                let mut min_dist = 4;
-                let mut cnt = 0u32;
-                res_code = 0;
-
-                for &sel_code in sel_codes {
-                    if parent.is_some()
-                        && table.name_by_code(table.parent_code(sel_code)) != parent.as_deref()
-                    {
-                        continue;
-                    }
-
-                    let mut dist = code_dist(code, sel_code);
-                    if dist == 1
-                        && table.name_by_code(table.parent_code(sel_code))
-                            != origin.name_by_code(origin.parent_code(sel_code))
-                    {
-                        dist = 2;
-                    }
-                    match dist.cmp(&min_dist) {
-                        Ordering::Less => {
-                            min_dist = dist;
-                            cnt = 1;
-                            res_code = sel_code;
-                        }
-                        Ordering::Equal => cnt += 1,
-                        _ => {}
-                    }
+                let sel_codes = target.codes_by_name(name);
+                if sel_codes.len() == 1 {
+                    panic!("{sel_name}: unnecessary parent restriction");
                 }
 
-                if cnt == 0 {
-                    panic!("{name}@{code}: not found");
-                } else if cnt != 1 {
-                    panic!("{name}@{code}: multiple records found");
-                }
+                *sel_codes
+                    .iter()
+                    .find(|&&code| target.parent_code(code) == parent_code)
+                    .unwrap_or_else(|| panic!("{sel_name}: not found"))
             }
             Selector::CurCode => {
-                res_code = code;
-                if table.name_by_code(code).is_none() {
+                if target.name_by_code(code).is_none() {
                     panic!("{code}: not found");
                 }
+                code
             }
             Selector::ParentCode => {
-                res_code = origin.parent_code(code);
-                if let Some(_parent_name) = table.name_by_code(res_code) {
+                let parent_code = origin.parent_code(code);
+                if let Some(_parent_name) = target.name_by_code(parent_code) {
                     // println!("..@{code} {} = {_parent_name}", line.name);
                 } else {
                     panic!("..@{code}: not found");
                 }
+                parent_code
             }
-        }
+        };
 
-        res.push(res_code);
+        res.push(sel_code);
 
         // Asymmetry check
         let (code, res_code) = if line.fwd {
-            (-(code as i32), res_code as i32)
+            (-(code as i32), sel_code as i32)
         } else {
-            (code as i32, -(res_code as i32))
+            (code as i32, -(sel_code as i32))
         };
 
         let insert = !rem.get_mut(&res_code).is_some_and(|rem| rem.remove(&code));
@@ -304,8 +302,8 @@ impl DataTable {
         }
     }
 
-    fn codes_by_name(&self, name: &str) -> Option<&[u32]> {
-        self.codes_by_name.get(name).map(|x| &**x)
+    fn codes_by_name(&self, name: &str) -> &[u32] {
+        self.codes_by_name.get(name).map(|x| &**x).unwrap_or(&[])
     }
 
     fn has_children(&self, code: u32) -> bool {
@@ -375,7 +373,7 @@ fn parse_line(line: &str) -> Option<Line<'_>> {
             } else if actual_fwd != fwd {
                 return None;
             }
-            (name, Some(parse_attr(attr, name)?))
+            (name, Some(parse_attr(attr)?))
         }
         None => {
             if transfer {
@@ -394,7 +392,7 @@ fn parse_line(line: &str) -> Option<Line<'_>> {
     }))
 }
 
-fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
+fn parse_attr<'a>(attr: &'a str) -> Option<Vec<Selector<'a>>> {
     let mut res = Vec::new();
     for mut sel in attr.split(',') {
         if sel.ends_with('?') {
@@ -407,21 +405,7 @@ fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
         let sel = match sel {
             "." => Selector::CurCode,
             ".." => Selector::ParentCode,
-            _ => {
-                let parent = if let Some((name, rest)) = sel.split_once('(') {
-                    sel = name;
-                    Some(rest.strip_suffix(')')?)
-                } else {
-                    None
-                };
-
-                if sel == "_" {
-                    sel = name;
-                } else if sel == name {
-                    println!("unnecessary repetition: {name}");
-                }
-                Selector::Name { name: sel, parent }
-            }
+            _ => Selector::Name(sel),
         };
         res.push(sel);
     }
@@ -430,10 +414,7 @@ fn parse_attr<'a>(attr: &'a str, name: &'a str) -> Option<Vec<Selector<'a>>> {
 
 #[derive(Debug)]
 enum Selector<'a> {
-    Name {
-        name: &'a str,
-        parent: Option<&'a str>,
-    },
+    Name(&'a str),
     CurCode,
     ParentCode,
 }
