@@ -167,9 +167,9 @@ pub fn process_diff(
 }
 
 pub fn parent(code: u32) -> u32 {
-    if code % 100 != 0 {
+    if !code.is_multiple_of(100) {
         code / 100 * 100
-    } else if code % 10000 != 0 {
+    } else if !code.is_multiple_of(10000) {
         code / 10000 * 10000
     } else {
         0

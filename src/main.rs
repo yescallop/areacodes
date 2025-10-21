@@ -137,9 +137,9 @@ fn insert_diff(map: &mut HashMap<u32, Area>) -> Result<BTreeMap<u32, Vec<String>
 }
 
 fn parent_name(map: &HashMap<u32, String>, code: u32) -> Option<&String> {
-    let code = if code % 100 != 0 {
+    let code = if !code.is_multiple_of(100) {
         code / 100 * 100
-    } else if code % 10000 != 0 {
+    } else if !code.is_multiple_of(10000) {
         code / 10000 * 10000
     } else {
         0
@@ -269,9 +269,9 @@ impl Level {
     }
 
     fn from_code(code: u32) -> Level {
-        if code % 100 != 0 {
+        if !code.is_multiple_of(100) {
             Level::County
-        } else if code % 10000 != 0 {
+        } else if !code.is_multiple_of(10000) {
             Level::Prefecture
         } else {
             Level::Province
