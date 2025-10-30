@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     io,
 };
 
@@ -25,8 +25,8 @@ pub fn process_diff(
 
     // Check for possible omission or duplication by calculating
     // common codes twice and comparing two results.
-    let mut codes_src = BTreeSet::new();
-    let mut codes_dst = BTreeSet::new();
+    let mut codes_src = BTreeMap::new();
+    let mut codes_dst = BTreeMap::new();
 
     for diff in files(DIFF_DIRECTORY) {
         let file_stem = diff.file_stem().unwrap().to_str().unwrap();
@@ -35,12 +35,12 @@ pub fn process_diff(
         println!("----- {file_stem} -----");
 
         read_data(&format!("{DATA_DIRECTORY}/{src_year}.txt"), |code, name| {
-            src.insert(code, name);
-            codes_src.insert(code);
+            src.insert(code, name.clone());
+            codes_src.insert(code, name);
         })?;
         read_data(&format!("{DATA_DIRECTORY}/{dst_year}.txt"), |code, name| {
-            dst.insert(code, name);
-            codes_dst.insert(code);
+            dst.insert(code, name.clone());
+            codes_dst.insert(code, name);
         })?;
 
         let time = dst_year.parse().unwrap();
@@ -100,13 +100,21 @@ pub fn process_diff(
                     src.name_by_code(code) == Some(name),
                     "{code}: invalid deletion",
                 );
-                assert!(codes_src.remove(&code), "{code}: duplicate deletion");
+                assert_eq!(
+                    codes_src.remove(&code).as_deref(),
+                    Some(name),
+                    "{code}: duplicate deletion"
+                );
             } else {
                 assert!(
                     dst.name_by_code(code) == Some(name),
                     "{code}: invalid addition",
                 );
-                assert!(codes_dst.remove(&code), "{code}: duplicate addition");
+                assert_eq!(
+                    codes_dst.remove(&code).as_deref(),
+                    Some(name),
+                    "{code}: duplicate addition"
+                );
             }
 
             let (target, origin) = if line.fwd { (&dst, &src) } else { (&src, &dst) };
@@ -151,9 +159,11 @@ pub fn process_diff(
             }
         }
 
-        let sym_diff: BTreeSet<_> = codes_src.symmetric_difference(&codes_dst).collect();
-        if !sym_diff.is_empty() {
-            panic!("omission detected: {sym_diff:?}")
+        if codes_src != codes_dst {
+            let codes_src: BTreeSet<_> = codes_src.into_iter().collect();
+            let codes_dst: BTreeSet<_> = codes_dst.into_iter().collect();
+            let sym_diff: BTreeSet<_> = codes_src.symmetric_difference(&codes_dst).collect();
+            panic!("omission detected: {sym_diff:?}");
         }
 
         src.clear();
