@@ -83,11 +83,6 @@ pub fn process_diff(
             let code = line.code;
             let name = line.name;
 
-            assert!(
-                desc_id.is_some(),
-                "undescribed change at {file_stem}.diff:{line_i}"
-            );
-
             if line.transfer {
                 let src_name = src.name_by_code(code);
                 let dst_name = dst.name_by_code(code);
@@ -126,9 +121,16 @@ pub fn process_diff(
             if has_children {
                 assert!(attr.is_empty(), "{code}: nonempty attr with children");
                 return;
+            } else if desc_id.is_none() && attr.is_empty() {
+                return;
             } else {
                 assert!(!attr.is_empty(), "{code}: empty attr without children");
             }
+
+            assert!(
+                desc_id.is_some(),
+                "undescribed change at {file_stem}.diff:{line_i}"
+            );
 
             if line.fwd {
                 handle_fwd_diff(FwdDiff {
@@ -150,6 +152,10 @@ pub fn process_diff(
                 }
             }
         })?;
+
+        if !desc.is_empty() {
+            println!("Dangling description:\n{desc}");
+        }
 
         for (code, rem_codes) in &rem {
             for rem_code in rem_codes {
@@ -239,7 +245,7 @@ fn select(
 
                 let sel_codes = target.codes_by_name(name);
                 if sel_codes.len() == 1 {
-                    panic!("{sel_name}: unnecessary parent restriction");
+                    println!("{sel_name}: unnecessary parent restriction");
                 }
 
                 *sel_codes
