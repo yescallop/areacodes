@@ -119,8 +119,10 @@ pub fn process_diff(
 
             let has_children = origin.has_children(code);
             if has_children {
-                assert!(attr.is_empty(), "{code}: nonempty attr with children");
-                return;
+                if !line.transfer {
+                    assert!(attr.is_empty(), "{code}: nonempty attr with children");
+                    return;
+                }
             } else if desc_id.is_none() && attr.is_empty() {
                 return;
             } else {
