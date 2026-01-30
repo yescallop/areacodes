@@ -53,7 +53,7 @@ const guide: Item = {
     },
     {
       code: 7,
-      name: "支持代码、名称前缀、时间搜索",
+      name: "支持名称前缀、完整代码搜索",
       start: 0,
     }
   ]
