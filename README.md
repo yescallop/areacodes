@@ -25,7 +25,8 @@
 
 ## 数据来源
 
-- [中华人民共和国县级以上行政区划代码][1]（[最新数据][1a]），民政部。
+- [行政区划代码][0]（2025 年），国家地名信息库。
+- 中华人民共和国县级以上行政区划代码（[1980-2023 年][1]；[2024 年][1a]），民政部（已失效）。
 - [县级以上行政区划变更情况][2]，民政部。
 - [国务院公报][3]，中国政府网。
 - [全国行政区划信息查询平台][4]，民政部。
@@ -34,6 +35,7 @@
 [CSV]: https://raw.githubusercontent.com/yescallop/areacodes/master/result.csv
 [JSON]: https://raw.githubusercontent.com/yescallop/areacodes/master/codes.json
 [CC0 1.0]: https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans
+[0]: https://dmfw.mca.gov.cn/XzqhVersionPublish.html
 [1]: https://www.mca.gov.cn/n156/n186/index.html
 [1a]: https://www.mca.gov.cn/n156/n2679/index.html
 [2]: http://xzqh.mca.gov.cn/description?dcpid=1
